@@ -8,18 +8,34 @@ every now and then, and fall asleep when you've been away from the PC for a whil
 > no character artwork. On first run the app offers to download a starter set of stickers from
 > [Tenor](https://tenor.com), for your personal use.
 
-## Requirements
+## Download
 
-- Windows 10 or 11 (developed on Windows 11)
-- [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0) to build
+Get the latest `.exe` from [Releases](https://github.com/lesyhau/yier-bubu-pet/releases/latest):
 
-## Getting started
+- `YierBubuPet-win-x64.exe` for most PCs (Intel/AMD)
+- `YierBubuPet-win-arm64.exe` for ARM PCs (Snapdragon, Surface Pro X)
+
+Put it in a folder of its own (an `animations` folder is created next to it) and run it.
+Nothing else needs to be installed. Windows may say "Windows protected your PC" because the exe isn't
+code-signed; click **More info → Run anyway**.
+
+Works on Windows 10 and 11 (developed on Windows 11).
+
+## Building from source
+
+Needs the [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0).
 
 ```
 git clone https://github.com/lesyhau/yier-bubu-pet.git
 cd yier-bubu-pet
 dotnet publish -c Release -o app
 app\YierBubuPet.exe
+```
+
+To build a single self-contained exe like the ones on the Releases page (use `win-arm64` for ARM):
+
+```
+dotnet publish -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true -o dist
 ```
 
 On first run, the app sees that `animations\` is empty and offers to download the starter pack
