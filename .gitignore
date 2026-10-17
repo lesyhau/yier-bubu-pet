@@ -1,0 +1,11 @@
+bin/
+obj/
+app/
+incoming/
+.vs/
+*.user
+
+# Character artwork isn't redistributed; it's downloaded on first run (see StarterPack.json).
+animations/*
+!animations/README.md
+__pycache__/

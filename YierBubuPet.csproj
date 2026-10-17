@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <!-- WPF and WinForms share many type names; usings are explicit per file. -->
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <ApplicationIcon>icon.ico</ApplicationIcon>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <!-- DPI awareness is set in app.manifest because this is a WPF app (WinForms is only used for the tray icon). -->
+    <NoWarn>$(NoWarn);WFAC010</NoWarn>
+    <AssemblyName>YierBubuPet</AssemblyName>
+    <RootNamespace>YierBubuPet</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="app\**;animations\**;incoming\**;tools\**" />
+    <None Remove="app\**;animations\**;incoming\**;tools\**" />
+    <EmbeddedResource Include="StarterPack.json" LogicalName="StarterPack.json" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="SkiaSharp" Version="4.153.1" />
+  </ItemGroup>
+
+</Project>
