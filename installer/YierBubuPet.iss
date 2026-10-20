@@ -47,7 +47,8 @@ VersionInfoVersion={#AppVersion}
 DefaultDirName={autopf}\YierBubuPet
 DefaultGroupName={#AppName}
 DisableProgramGroupPage=yes
-LicenseFile={#RepoDir}\LICENSE
+; Same text as LICENSE, but one line per paragraph so the installer can word-wrap it.
+LicenseFile=License.txt
 SetupIconFile={#RepoDir}\src\YierBubuPet\Resources\icon.ico
 UninstallDisplayIcon={app}\{#AppExe}
 UninstallDisplayName={#AppName}
