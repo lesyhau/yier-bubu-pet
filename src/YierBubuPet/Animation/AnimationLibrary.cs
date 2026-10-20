@@ -24,14 +24,20 @@ public sealed class AnimationClip
 /// <summary>
 /// Finds animations under the animations folder by folder name
 /// ("yier/walk", "together/sleep", ...) and decodes them on demand.
+/// Also finds the sounds that go with them (see <see cref="PickSound"/>).
 /// Drop a new file into a folder and it's picked up automatically.
 /// </summary>
 public sealed class AnimationLibrary : IDisposable
 {
     static readonly HashSet<string> Extensions = new(StringComparer.OrdinalIgnoreCase) { ".gif", ".webp", ".png", ".apng" };
+    public static readonly HashSet<string> SoundExtensions = new(StringComparer.OrdinalIgnoreCase) { ".wav", ".mp3", ".wma", ".m4a", ".aac" };
     const int CacheSize = 12;
 
     readonly Dictionary<string, List<string>> _byKey = new(StringComparer.OrdinalIgnoreCase);
+    // Sounds named like an animation ("hug.webp" + "hug.mp3") belong to that animation only.
+    readonly Dictionary<string, List<string>> _soundsByClip = new(StringComparer.OrdinalIgnoreCase);
+    // Other sounds in a folder go with any animation in that folder that has no sound of its own.
+    readonly Dictionary<string, List<string>> _soundsByKey = new(StringComparer.OrdinalIgnoreCase);
     readonly Dictionary<string, Task<AnimationClip?>> _cache = new(StringComparer.OrdinalIgnoreCase);
     readonly LinkedList<string> _recent = new();
     readonly FileSystemWatcher _watcher;
@@ -89,6 +95,17 @@ public sealed class AnimationLibrary : IDisposable
         if (!_byKey.TryGetValue(key, out var list) || list.Count == 0) return null;
         var choices = list.Count > 1 && avoid != null ? list.Where(f => f != avoid).ToList() : list;
         return choices[_rng.Next(choices.Count)];
+    }
+
+    /// <summary>
+    /// The sound to play with an animation file: one with the same name (any audio extension) if there is one,
+    /// otherwise a random "loose" sound from the same folder, otherwise null.
+    /// </summary>
+    public string? PickSound(string clipPath)
+    {
+        if (_soundsByClip.TryGetValue(StripExtension(clipPath), out var own)) return own[_rng.Next(own.Count)];
+        var key = KeyOf(clipPath);
+        return _soundsByKey.TryGetValue(key, out var loose) ? loose[_rng.Next(loose.Count)] : null;
     }
 
     /// <summary>Decodes off the UI thread; returns null if the file can't be read.</summary>
@@ -152,15 +169,41 @@ public sealed class AnimationLibrary : IDisposable
     void Scan()
     {
         _byKey.Clear();
+        _soundsByClip.Clear();
+        _soundsByKey.Clear();
         if (!Directory.Exists(Root)) return;
+
+        var sounds = new List<string>();
+        var clips = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var file in Directory.EnumerateFiles(Root, "*.*", SearchOption.AllDirectories))
         {
-            if (!Extensions.Contains(System.IO.Path.GetExtension(file))) continue;
-            var key = System.IO.Path.GetRelativePath(Root, System.IO.Path.GetDirectoryName(file)!).Replace('\\', '/');
-            if (!_byKey.TryGetValue(key, out var list)) _byKey[key] = list = new List<string>();
-            list.Add(file);
+            var ext = System.IO.Path.GetExtension(file);
+            if (SoundExtensions.Contains(ext)) { sounds.Add(file); continue; }
+            if (!Extensions.Contains(ext)) continue;
+            Add(_byKey, KeyOf(file), file);
+            clips.Add(StripExtension(file));
+        }
+
+        foreach (var sound in sounds)
+        {
+            var stem = StripExtension(sound);
+            if (clips.Contains(stem)) Add(_soundsByClip, stem, sound);
+            else Add(_soundsByKey, KeyOf(sound), sound);
         }
     }
+
+    static void Add(Dictionary<string, List<string>> map, string key, string file)
+    {
+        if (!map.TryGetValue(key, out var list)) map[key] = list = new List<string>();
+        list.Add(file);
+    }
+
+    /// <summary>"yier/walk" for a file in animations\yier\walk.</summary>
+    string KeyOf(string file) =>
+        System.IO.Path.GetRelativePath(Root, System.IO.Path.GetDirectoryName(file)!).Replace('\\', '/');
+
+    static string StripExtension(string file) =>
+        System.IO.Path.Combine(System.IO.Path.GetDirectoryName(file)!, System.IO.Path.GetFileNameWithoutExtension(file));
 
     public void Dispose() => _watcher.Dispose();
 }

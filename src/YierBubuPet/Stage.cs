@@ -24,6 +24,7 @@ public sealed class Stage : IDisposable
     readonly AnimationLibrary _lib;
     readonly List<Pet> _pets = new();
     readonly SpriteWindow _duo = new();
+    readonly SoundChannel _duoSound;
     readonly Random _rng = new();
     readonly DispatcherTimer _timer;
     readonly Stopwatch _clock = Stopwatch.StartNew();
@@ -35,11 +36,13 @@ public sealed class Stage : IDisposable
     double _meetX, _gap, _duoMs, _nextTogetherMs, _lastTick;
     int _duoLoops, _duoToken;
     bool _shown = true, _bedtime;
+    bool _togetherByUser; // the current "together" was asked for from the menu or by a click
 
     public Stage(string animationsRoot)
     {
         _settings = Settings.Load();
         _lib = new AnimationLibrary(animationsRoot, _settings.PetHeight, Screens.DpiScale);
+        _duoSound = new SoundChannel(_settings);
         _lib.Changed += () =>
         {
             foreach (var p in _pets) p.Refresh();
@@ -96,6 +99,7 @@ public sealed class Stage : IDisposable
     {
         _tray.ShowBalloonTip(3000, "Yier & Bubu", "Downloading stickers…", Forms.ToolTipIcon.None);
         var (downloaded, failed) = await StarterPack.DownloadMissingAsync(_lib.Root);
+        StarterPack.InstallDefaultSounds(_lib.Root);
         _lib.Reload();
         string text = failed == 0
             ? $"{downloaded} new sticker(s) downloaded."
@@ -119,7 +123,7 @@ public sealed class Stage : IDisposable
                 if (_nextTogetherMs <= 0)
                 {
                     ScheduleTogether();
-                    if (_pets.All(p => p.State is PetState.Idle or PetState.Walk)) StartMeeting("together/play");
+                    if (_pets.All(p => p.State is PetState.Idle or PetState.Walk)) StartMeeting("together/play", byUser: false);
                 }
                 break;
 
@@ -144,10 +148,11 @@ public sealed class Stage : IDisposable
 
     bool CanBeTogether(string key) => _pets.Count == 2 && _lib.Has(key);
 
-    void StartMeeting(string key)
+    void StartMeeting(string key, bool byUser)
     {
         if (!CanBeTogether(key)) return;
         _togetherKey = key;
+        _togetherByUser = byUser;
         _mode = Mode.Meeting;
 
         var left = _pets.OrderBy(p => p.X).First();
@@ -159,8 +164,11 @@ public sealed class Stage : IDisposable
         right.WalkTo(_meetX + _gap);
     }
 
-    async void ShowTogether()
+    /// <param name="byUser">Set when the user asked for this one; otherwise keeps how the meeting started.</param>
+    /// <param name="sound">False when only re-showing (e.g. after a size change).</param>
+    async void ShowTogether(bool? byUser = null, bool sound = true)
     {
+        if (byUser.HasValue) _togetherByUser = byUser.Value;
         _mode = Mode.Together;
         _duoMs = 0;
         _duoLoops = 0;
@@ -176,7 +184,11 @@ public sealed class Stage : IDisposable
         _duo.Face(_rng.Next(2) == 0);
         _duo.PlaceAt(_meetX, feet);
         foreach (var p in _pets) p.Hide();
-        if (_shown) _duo.Show();
+        if (_shown)
+        {
+            _duo.Show();
+            if (sound) _duoSound.Play(_lib.PickSound(file!), _togetherByUser);
+        }
         _duoMs = 0;
         _duoLoops = 0;
     }
@@ -187,6 +199,7 @@ public sealed class Stage : IDisposable
         bool wasShowing = _mode == Mode.Together;
         _mode = Mode.Free;
         _duo.Hide();
+        _duoSound.Stop();
         var ordered = _pets.OrderBy(p => p.X).ToList();
         for (int i = 0; i < ordered.Count; i++)
         {
@@ -201,14 +214,14 @@ public sealed class Stage : IDisposable
     void TogetherNow()
     {
         WakeUp();
-        if (_mode == Mode.Together) ShowTogether(); // already together: play another one
-        else if (_mode == Mode.Free) StartMeeting("together/play");
+        if (_mode == Mode.Together) ShowTogether(byUser: true); // already together: play another one
+        else if (_mode == Mode.Free) StartMeeting("together/play", byUser: true);
     }
 
     void OnDuoClicked()
     {
         if (_togetherKey == "together/sleep") { _bedtime = false; WakeUp(); }
-        else ShowTogether();
+        else ShowTogether(byUser: true);
     }
 
     void ScheduleTogether() =>
@@ -230,7 +243,7 @@ public sealed class Stage : IDisposable
         if (_mode != Mode.Free) EndTogether();
         if (CanBeTogether("together/sleep"))
         {
-            StartMeeting("together/sleep");
+            StartMeeting("together/sleep", byUser: _bedtime);
             return;
         }
         _mode = Mode.Sleeping;
@@ -282,9 +295,39 @@ public sealed class Stage : IDisposable
                 _settings.PetHeight = h;
                 _settings.Save();
                 _lib.SetHeight(h);
-                if (_mode == Mode.Together) ShowTogether();
+                if (_mode == Mode.Together) ShowTogether(sound: false);
             };
             size.DropDownItems.Add(item);
+        }
+
+        var sound = new Forms.ToolStripMenuItem("Sound");
+        var soundModes = new[]
+        {
+            (SoundMode.Off, "Off"),
+            (SoundMode.Interactions, "When I click or drag them"),
+            (SoundMode.Always, "For everything they do"),
+        };
+        foreach (var (mode, label) in soundModes)
+        {
+            var item = new Forms.ToolStripMenuItem(label) { Tag = mode };
+            item.Click += (_, _) =>
+            {
+                _settings.Sound = mode;
+                _settings.Save();
+                if (mode == SoundMode.Off) StopAllSounds();
+            };
+            sound.DropDownItems.Add(item);
+        }
+        sound.DropDownItems.Add(new Forms.ToolStripSeparator());
+        foreach (var (label, v) in new[] { ("Quiet", 0.3), ("Normal", 0.6), ("Loud", 1.0) })
+        {
+            var item = new Forms.ToolStripMenuItem(label) { Tag = v };
+            item.Click += (_, _) =>
+            {
+                _settings.SoundVolume = v;
+                _settings.Save();
+            };
+            sound.DropDownItems.Add(item);
         }
 
         var show = new Forms.ToolStripMenuItem("Hide pets");
@@ -292,7 +335,7 @@ public sealed class Stage : IDisposable
         {
             _shown = !_shown;
             foreach (var p in _pets) p.SetShown(_shown);
-            if (!_shown) _duo.Hide();
+            if (!_shown) { _duo.Hide(); _duoSound.Stop(); }
             else if (_mode == Mode.Together) _duo.Show();
         };
 
@@ -303,6 +346,7 @@ public sealed class Stage : IDisposable
         menu.Items.Add(bed);
         menu.Items.Add(new Forms.ToolStripSeparator());
         menu.Items.Add(size);
+        menu.Items.Add(sound);
         menu.Items.Add(show);
         menu.Items.Add(new Forms.ToolStripSeparator());
         menu.Items.Add("Open animations folder", null, (_, _) => Process.Start("explorer.exe", _lib.Root));
@@ -319,8 +363,16 @@ public sealed class Stage : IDisposable
             startup.Checked = StartsWithWindows();
             foreach (Forms.ToolStripMenuItem item in size.DropDownItems)
                 item.Checked = (double)item.Tag! == _settings.PetHeight;
+            foreach (var item in sound.DropDownItems.OfType<Forms.ToolStripMenuItem>())
+                item.Checked = item.Tag is SoundMode m ? m == _settings.Sound : (double)item.Tag! == _settings.SoundVolume;
         };
         return menu;
+    }
+
+    void StopAllSounds()
+    {
+        foreach (var p in _pets) p.Sound.Stop();
+        _duoSound.Stop();
     }
 
     void ShowMenuAtCursor() => _menu.Show(Forms.Cursor.Position);
@@ -341,6 +393,7 @@ public sealed class Stage : IDisposable
     public void Dispose()
     {
         _timer.Stop();
+        StopAllSounds();
         _tray.Visible = false;
         _tray.Dispose();
         _lib.Dispose();

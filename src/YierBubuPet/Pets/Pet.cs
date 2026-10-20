@@ -49,6 +49,7 @@ public sealed class Pet
 
     public string Name { get; }
     public SpriteWindow Window { get; } = new();
+    public SoundChannel Sound { get; }
     public PetState State { get; private set; }
     public double X { get; private set; }   // centre, DIPs
     public double Y { get; private set; }   // feet, DIPs
@@ -63,6 +64,7 @@ public sealed class Pet
         _lib = lib;
         _settings = settings;
         _rng = rng;
+        Sound = new SoundChannel(settings);
         X = x;
         Y = y;
         _facingRight = rng.Next(2) == 0;
@@ -146,6 +148,7 @@ public sealed class Pet
     public void Hide()
     {
         State = PetState.Hidden;
+        Sound.Stop();
         Window.Hide();
     }
 
@@ -172,14 +175,14 @@ public sealed class Pet
     public void SetShown(bool shown)
     {
         _shown = shown;
-        if (!shown) Window.Hide();
+        if (!shown) { Window.Hide(); Sound.Stop(); }
         else if (State != PetState.Hidden && Window.Animation != null) Window.Show();
     }
 
     /// <summary>Pick a fresh animation for the current state (e.g. after the pet size changed).</summary>
     public void Refresh()
     {
-        if (State != PetState.Hidden) PlayFor(State);
+        if (State != PetState.Hidden) PlayFor(State, SoundCue.None);
     }
 
     void ChooseNext(Rect area)
@@ -201,19 +204,23 @@ public sealed class Pet
             Enter(PetState.Idle);
     }
 
-    void Enter(PetState state, bool newClip = true)
+    /// <param name="byUser">The user caused this (click or drag), which decides whether its sound plays.</param>
+    void Enter(PetState state, bool newClip = true, bool byUser = false)
     {
         State = state;
         _stateMs = 0;
         _loops = 0;
         if (state == PetState.Idle) _idleLimitMs = 4000 + _rng.NextDouble() * 6000;
         if (state == PetState.Fall) _vy = 0;
-        if (newClip) PlayFor(state);
+        if (newClip) PlayFor(state, byUser ? SoundCue.User : SoundCue.Auto);
     }
 
-    async void PlayFor(PetState state)
+    enum SoundCue { None, Auto, User }
+
+    async void PlayFor(PetState state, SoundCue cue)
     {
         int token = ++_playToken;
+        if (cue != SoundCue.None) Sound.Stop();
         string? file = null;
         foreach (var folder in Anims[state])
             if ((file = _lib.Pick($"{Name}/{folder}", _lastFile)) != null) break;
@@ -225,6 +232,8 @@ public sealed class Pet
         _lastFile = file;
         _loops = 0;
         Window.Play(clip);
+        if (cue != SoundCue.None && _shown && State != PetState.Hidden)
+            Sound.Play(_lib.PickSound(file), cue == SoundCue.User);
         Window.Face(_facingRight);
         Window.PlaceAt(X, Y);
         if (_shown && State != PetState.Hidden && !Window.IsVisible) Window.Show();
@@ -247,7 +256,7 @@ public sealed class Pet
         {
             _dragging = true;
             _summoned = false;
-            Enter(PetState.Drag);
+            Enter(PetState.Drag, byUser: true);
             Touched?.Invoke(this);
         }
         if (_dragging)
@@ -271,7 +280,7 @@ public sealed class Pet
         else
         {
             _summoned = false;
-            Enter(PetState.React);
+            Enter(PetState.React, byUser: true);
             Touched?.Invoke(this);
         }
     }

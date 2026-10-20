@@ -19,6 +19,7 @@ public static class Program
         {
             // Exit code = number of stickers that failed to download.
             var (_, failed) = StarterPack.DownloadMissingAsync(args[1]).GetAwaiter().GetResult();
+            StarterPack.InstallDefaultSounds(args[1]);
             Environment.ExitCode = failed;
             return;
         }
@@ -26,8 +27,7 @@ public static class Program
         using var mutex = new Mutex(true, "YierBubuPet.SingleInstance", out bool firstInstance);
         if (!firstInstance) return;
 
-        var root = FindAnimationsFolder() ?? Path.Combine(AppContext.BaseDirectory, "animations");
-        Directory.CreateDirectory(root);
+        var root = FindAnimationsFolder() ?? CreateAnimationsFolder();
 
         Screens.Init();
         var app = new Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
@@ -51,7 +51,10 @@ public static class Program
         }
     }
 
-    /// <summary>Looks for "animations" next to the exe, then in parent folders (so dev builds use the project folder).</summary>
+    /// <summary>
+    /// Looks for "animations" next to the exe, then in parent folders (so dev builds use the one at the
+    /// repository root), then in %LocalAppData% (used when the exe's own folder isn't writable).
+    /// </summary>
     static string? FindAnimationsFolder()
     {
         for (var dir = new DirectoryInfo(AppContext.BaseDirectory); dir != null; dir = dir.Parent)
@@ -59,6 +62,29 @@ public static class Program
             var candidate = Path.Combine(dir.FullName, "animations");
             if (Directory.Exists(candidate)) return candidate;
         }
-        return null;
+        var perUser = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "YierBubuPet", "animations");
+        return Directory.Exists(perUser) ? perUser : null;
+    }
+
+    /// <summary>
+    /// Next to the exe when that folder is writable (portable use, or the installer's default per-user install);
+    /// otherwise, e.g. when installed for all users in Program Files, %LocalAppData%\YierBubuPet\animations.
+    /// </summary>
+    static string CreateAnimationsFolder()
+    {
+        var local = Path.Combine(AppContext.BaseDirectory, "animations");
+        try
+        {
+            Directory.CreateDirectory(local);
+            return local;
+        }
+        catch (Exception e) when (e is UnauthorizedAccessException or IOException)
+        {
+            var perUser = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "YierBubuPet", "animations");
+            Directory.CreateDirectory(perUser);
+            return perUser;
+        }
     }
 }

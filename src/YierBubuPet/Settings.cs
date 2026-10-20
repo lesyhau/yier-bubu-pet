@@ -1,8 +1,11 @@
 using System;
 using System.IO;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace YierBubuPet;
+
+public enum SoundMode { Off, Interactions, Always }
 
 public sealed class Settings
 {
@@ -17,6 +20,13 @@ public sealed class Settings
 
     /// <summary>Average seconds between the pets coming together on their own.</summary>
     public double TogetherEverySeconds { get; set; } = 90;
+
+    /// <summary>When sounds play: never, only when you click/drag the pets, or for everything they do.</summary>
+    [JsonConverter(typeof(JsonStringEnumConverter))]
+    public SoundMode Sound { get; set; } = SoundMode.Interactions;
+
+    /// <summary>Sound volume, 0 to 1.</summary>
+    public double SoundVolume { get; set; } = 0.6;
 
     static string FilePath => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "YierBubuPet", "settings.json");

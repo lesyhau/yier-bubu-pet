@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <!-- WPF and WinForms share many type names; usings are explicit per file. -->
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <ApplicationIcon>Resources\icon.ico</ApplicationIcon>
+    <ApplicationManifest>Resources\app.manifest</ApplicationManifest>
+    <!-- DPI awareness is set in app.manifest because this is a WPF app (WinForms is only used for the tray icon). -->
+    <NoWarn>$(NoWarn);WFAC010</NoWarn>
+    <AssemblyName>YierBubuPet</AssemblyName>
+    <RootNamespace>YierBubuPet</RootNamespace>
+    <Product>Yier &amp; Bubu</Product>
+    <Version>1.1.0</Version>
+    <!-- Keep the version plain (no "+commit" suffix) so the installer and About text show "1.1.0". -->
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+    <!-- Lets the project build on Linux/macOS too (for CI checks); the app itself only runs on Windows. -->
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="StarterPack\StarterPack.json" LogicalName="StarterPack.json" />
+    <!-- Default sound effects, copied into the animations folder with the starter pack. -->
+    <EmbeddedResource Include="..\..\assets\sounds\**\*.wav" LogicalName="sounds/%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="SkiaSharp" Version="4.153.1" />
+  </ItemGroup>
+
+</Project>
