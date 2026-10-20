@@ -29,6 +29,12 @@ internal static class Native
     [DllImport("user32.dll")]
     static extern bool GetCursorPos(out POINT p);
 
+    [DllImport("user32.dll")]
+    static extern short GetAsyncKeyState(int key);
+
+    /// <summary>True while the left or right mouse button is held down (anywhere on screen).</summary>
+    public static bool MouseButtonDown() => (GetAsyncKeyState(0x01) & 0x8000) != 0 || (GetAsyncKeyState(0x02) & 0x8000) != 0;
+
     public static void MakeToolWindow(Window w)
     {
         var hwnd = new WindowInteropHelper(w).Handle;

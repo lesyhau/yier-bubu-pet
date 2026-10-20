@@ -3,8 +3,9 @@
 # Yier & Bubu desktop pet
 
 一二 (Yier, the white panda) and 布布 (Bubu, the brown bear) live on top of your Windows taskbar.
-They walk around, react when you click them (with little sound effects), can be picked up and dropped,
-come together for a hug every now and then, and fall asleep when you've been away from the PC for a while.
+They walk around, react when you click them, can be picked up and dropped, come together for a hug
+every now and then, and fall asleep when you've been away from the PC for a while. They can also be
+your alarm clock and timer, and let you know about notifications, the battery and more.
 
 > **Unofficial fan project.** Yier & Bubu (一二布布) belong to their creators. This repository contains
 > no character artwork. On first run the app offers to download a starter set of stickers from
@@ -47,8 +48,7 @@ dotnet publish src\YierBubuPet -c Release -r win-x64 --self-contained -p:Publish
 ```
 
 On first run, the app sees that `animations\` is empty and offers to download the starter pack
-(75 stickers, about 5 MB, plus the default sound effects). You can also run that download from the
-tray menu, or from the command line:
+(76 stickers, about 5 MB). You can also run that download from the control panel, or from the command line:
 
 ```
 app\YierBubuPet.exe --starter-pack animations
@@ -73,7 +73,7 @@ Where things go when installed:
 | What | Where |
 |---|---|
 | The app | `%LocalAppData%\Programs\YierBubuPet` (or `Program Files\YierBubuPet` if you choose "all users") |
-| Animations and sounds | `animations\` next to the app; for an all-users install, `%LocalAppData%\YierBubuPet\animations` |
+| Animations and the alert sound | `animations\` next to the app; for an all-users install, `%LocalAppData%\YierBubuPet\animations` |
 | Settings | `%AppData%\YierBubuPet\settings.json` |
 
 Uninstalling asks whether to delete the animations folder too; by default it's kept.
@@ -82,19 +82,43 @@ Uninstalling asks whether to delete the animations folder too; by default it's k
 
 - **Click** a pet to make it react.
 - **Drag** a pet to pick it up; let go and it falls back down to the taskbar.
-- **Right-click** a pet, or use the tray icon, for the menu:
-  - **Together time 💕**: they walk to each other and play a "together" animation (double-clicking the tray icon does the same)
-  - **Bedtime 💤 / Wake up**: they also fall asleep by themselves after 5 minutes without keyboard or mouse input
-  - **Size**: Small / Medium / Large / Huge
-  - **Walking area**: Whole screen / Left half / Right half (you can still drag them anywhere; they walk back)
-  - **Sound**: Off / When I click or drag them / For everything they do, and Quiet / Normal / Loud
-  - **Hide pets**, **Open animations folder**, **Reload animations**, **Download starter stickers**
-  - **Start with Windows**
-  - **Language**: Automatic (follows Windows) / English / Tiếng Việt
-  - **About** and **Support the developer ❤**
-  - **Exit**
+- **Click the tray icon** or **right-click a pet** to open the control panel:
+  - **Together time 💕**: they walk to each other and play a "together" animation
+  - **Bedtime 💤 / Wake up** and **Hide / Show**. They also fall asleep by themselves after 5 minutes without keyboard or mouse input.
+  - **Alarms & timers**: add alarms (once, every day, or on weekdays, with a message) and timers (5, 10, 25, 60 minutes or your own)
+  - **Alerts**: choose what Yier tells you about (see below), and **Try it** to preview
+  - **Settings**: size, walking area (whole screen / left half / right half; you can still drag them anywhere and they walk back),
+    language (automatic / English / Tiếng Việt), start with Windows
+  - **Animations**: open the folder, reload, download the starter stickers
+  - **ⓘ** About and **Support the developer ❤**, **⏻** Exit
 
-Settings are saved in `%AppData%\YierBubuPet\settings.json`.
+Settings, alarms included, are saved in `%AppData%\YierBubuPet\settings.json`.
+
+## Alerts
+
+When something happens, Yier stops, plays the alert animation with its sound, and says what it is in a
+speech bubble. Click Yier or the bubble to dismiss it.
+
+| Alert | When | Rings until clicked |
+|---|---|---|
+| Alarm, timer | at the time you set | yes (gives up after 3 minutes) |
+| Notifications from other apps | a notification pops up (Zalo, Teams, Outlook, the Windows Clock app, ...) | no |
+| Every hour | on the hour | no |
+| Battery low | the battery drops to 20% while unplugged | yes |
+| Charger | the charger is plugged in or unplugged | no |
+| Unlock | you unlock the PC | no |
+
+Alarms, timers and low battery always show, even when the pets are hidden. The other alerts are skipped while
+the pets are hidden or you're away from the PC.
+
+The animation and sound come from **`animations\alert\`**: put one animated sticker and one sound file
+(**WAV, MP3, WMA or M4A**) there. The starter pack puts a sticker there; add your own sound. To use a different
+animation or sound for one kind of alert, put it in a sub-folder named after it: `alert\alarm`, `alert\timer`,
+`alert\notification`, `alert\hourly`, `alert\battery`, `alert\charger` or `alert\unlock`.
+
+**About notifications from other apps:** Windows only lets Store apps read notifications, so the app watches for
+the notification pop-up appearing instead. It can't see notifications while **Do not disturb** / Focus is on (no
+pop-up is shown), and it doesn't know which app sent one.
 
 ## Adding your own animations
 
@@ -117,27 +141,6 @@ up within a couple of seconds, with no restart needed.
   because the background is removed automatically. GIFs with a full scene behind the characters are kept as a rectangle.
 - Empty space around the character is trimmed, and everything is scaled to the same height, so any size works.
 - Walk animations are assumed to face left (or the viewer). If one faces right, put `[right]` in its file name.
-
-### Sounds
-
-Sounds live in the same folders as the animations. Supported formats are **WAV, MP3, WMA and M4A**.
-
-- A sound with **the same name as an animation** plays with that animation only:
-  `bubu\click\wave.webp` + `bubu\click\wave.mp3`.
-- Any **other sound in a folder** plays with the animations in that folder that don't have their own
-  (one is picked at random if there are several). For example, `yier\click\boop.wav` plays whenever
-  Yier reacts to a click.
-- A sound plays once when its animation starts and stops when the next animation starts.
-  Put `[loop]` in a sound's file name to repeat it for as long as the animation is showing.
-
-By default sounds only play for things you do (clicking, dragging, **Together time**, **Bedtime**),
-so the pets don't make noise on their own. Choose **Sound → For everything they do** in the menu to
-hear them all the time, or **Off** to mute them.
-
-The starter pack comes with a few sound effects (a boop for clicks, a slide whistle when picked up, a
-chime for hugs and a snore for bedtime). They're generated by `tools\make_sounds.py`, and the source
-files are in [`assets/sounds`](assets/sounds). Delete or replace them as you like; the app only adds
-default sounds to folders that have no sounds at all, when you use **Download starter stickers**.
 
 ### Previewing animations
 
@@ -163,12 +166,11 @@ usually tagged "bubu dudu". Try "bubu dudu sleep", "bubu dudu hug", "bubu dudu w
 ```
 YierBubuPet.sln
 src/YierBubuPet/        the app
-assets/sounds/          default sound effects (embedded in the exe)
 assets/logo/            app logo (SVG source; tools/make_icon.py renders the .ico and PNGs)
 assets/donate/          donation QR code (tools/make_qr.py)
 installer/              Inno Setup script and build script
-tools/                  sticker downloader, sound / icon / QR generators
-animations/             your animations and sounds (not in git)
+tools/                  sticker downloader, icon and QR generators
+animations/             your animations and the alert sound (not in git)
 ```
 
 Inside `src/YierBubuPet/`:
@@ -176,23 +178,25 @@ Inside `src/YierBubuPet/`:
 | File | Role |
 |---|---|
 | `Program.cs` | Entry point, single-instance check, command-line options, finding the animations folder |
-| `Stage.cs` | Frame loop, bringing the pets together, sleep/wake, tray menu |
-| `Settings.cs` | Saved settings (size, speed, sound) |
+| `Stage.cs` | Frame loop, bringing the pets together, sleep/wake, showing alerts, tray icon |
+| `Settings.cs` | Saved settings and alarms |
 | `Pets/Pet.cs` | One character's behaviour: idle → walk → react, dragging and falling |
 | `Pets/SpriteWindow.cs` | A borderless, transparent, always-on-top window that plays one animation. Clicks pass through transparent pixels. |
-| `Animation/AnimationLibrary.cs` | Finds animations and their sounds by folder, decodes in the background, caches, reloads when files change |
+| `Animation/AnimationLibrary.cs` | Finds animations (and alert sounds) by folder, decodes in the background, caches, reloads when files change |
 | `Animation/ClipDecoder.cs` | Decodes GIF/WebP/PNG with [SkiaSharp](https://github.com/mono/SkiaSharp), removes solid backgrounds, trims and scales |
-| `Audio/SoundChannel.cs` | Plays the sound that goes with a window's current animation |
+| `Alerts/` | What triggers alerts (alarms, timers, notifications, battery, ...), the alarm dialog and the speech bubble |
+| `Audio/AlertSound.cs` | Plays the alert sound |
+| `UI/` | The control panel and its building blocks (cards, toggles, buttons) |
 | `About/AboutWindow.cs` | About window with links and the donation options (PayPal link, VietQR code) |
 | `Localization/Strings.cs` | Menu and window text in English and Vietnamese |
-| `StarterPack/` | The starter sticker list, its downloader, and installing the default sounds |
+| `StarterPack/` | The starter sticker list and its downloader |
 | `Platform/` | Win32 calls, screens and DPI |
 | `Resources/` | App icon and manifest |
 
 ## Support the developer
 
 Yier & Bubu is free. If the pets make you smile, you can support development from **About → Support the developer**
-in the tray menu:
+in the control panel:
 
 - **PayPal:** send to `le.sy.hau@outlook.com`
 - **In Vietnam:** scan the QR code with your banking app (VietQR, Vietcombank)
@@ -201,5 +205,5 @@ in the tray menu:
 
 ## License
 
-The code, the logo and the sound effects in `assets/` are [MIT](LICENSE) licensed. That doesn't cover the
+The code and the logo are [MIT](LICENSE) licensed. That doesn't cover the
 characters or any downloaded artwork.

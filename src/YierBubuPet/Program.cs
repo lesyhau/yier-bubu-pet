@@ -19,7 +19,6 @@ public static class Program
         {
             // Exit code = number of stickers that failed to download.
             var (_, failed) = StarterPack.DownloadMissingAsync(args[1]).GetAwaiter().GetResult();
-            StarterPack.InstallDefaultSounds(args[1]);
             Environment.ExitCode = failed;
             return;
         }

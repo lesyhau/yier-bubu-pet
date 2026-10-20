@@ -53,41 +53,6 @@ internal static class StarterPack
         return (downloaded, failed);
     }
 
-    /// <summary>
-    /// Copies the built-in sound effects (assets/sounds in the repository) into the animations folder.
-    /// A folder that already has sounds is left alone, so your own sounds are never replaced.
-    /// </summary>
-    public static int InstallDefaultSounds(string root)
-    {
-        var assembly = Assembly.GetExecutingAssembly();
-        var rootFull = Path.GetFullPath(root);
-        var files = assembly.GetManifestResourceNames()
-            .Where(n => n.StartsWith("sounds/", StringComparison.Ordinal))
-            .Select(n => (Resource: n, Relative: n["sounds/".Length..].Replace('\\', '/')))
-            .GroupBy(f => Path.GetDirectoryName(f.Relative) ?? "");
-
-        int installed = 0;
-        foreach (var folder in files)
-        {
-            var dir = Path.GetFullPath(Path.Combine(rootFull, folder.Key));
-            if (Directory.Exists(dir) && Directory.EnumerateFiles(dir).Any(f => AnimationLibrary.SoundExtensions.Contains(Path.GetExtension(f))))
-                continue;
-            try
-            {
-                Directory.CreateDirectory(dir);
-                foreach (var (resource, relative) in folder)
-                {
-                    using var src = assembly.GetManifestResourceStream(resource)!;
-                    using var dst = File.Create(Path.Combine(dir, Path.GetFileName(relative)));
-                    src.CopyTo(dst);
-                    installed++;
-                }
-            }
-            catch (Exception e) when (e is IOException or UnauthorizedAccessException) { }
-        }
-        return installed;
-    }
-
     /// <summary>animations/&lt;folder&gt;/&lt;id&gt;_&lt;name&gt;.webp, or null if the entry looks wrong.</summary>
     static string? TargetPath(string root, Entry entry)
     {
