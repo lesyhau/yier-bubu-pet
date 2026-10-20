@@ -194,10 +194,10 @@ Inside `src/YierBubuPet/`:
 Yier & Bubu is free. If the pets make you smile, you can support development from **About → Support the developer**
 in the tray menu:
 
-- **PayPal**
-- **In Vietnam:** scan the QR code with your banking app (VietQR)
+- **PayPal:** send to `le.sy.hau@outlook.com`
+- **In Vietnam:** scan the QR code with your banking app (VietQR, Vietcombank)
 
-<!-- DONATE-QR -->
+<p><img src="assets/donate/donate-qr.png" width="220" alt="VietQR code for donations"></p>
 
 ## License
 

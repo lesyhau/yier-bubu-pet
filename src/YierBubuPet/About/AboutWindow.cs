@@ -13,11 +13,14 @@ namespace YierBubuPet;
 /// <summary>Where donations go. Leave a value null to hide that option.</summary>
 internal static class Donation
 {
-    /// <summary>A PayPal.Me link, e.g. "https://paypal.me/yourname".</summary>
-    public static readonly string? PayPalUrl = null;
+    /// <summary>
+    /// Opened by the PayPal button. PayPal's "Send money" page; donors paste <see cref="PayPalEmail"/> there.
+    /// Replace with a PayPal.Me link (https://paypal.me/yourname) if you get one.
+    /// </summary>
+    public static readonly string? PayPalUrl = "https://www.paypal.com/myaccount/transfer/homepage/pay";
 
     /// <summary>The PayPal account email, shown with a Copy button (works when PayPal.Me isn't available).</summary>
-    public static readonly string? PayPalEmail = null;
+    public static readonly string? PayPalEmail = "le.sy.hau@outlook.com";
 
     // The VietQR bank code is the embedded resource "donate-qr.png" (assets/donate/donate-qr.png, made by tools/make_qr.py).
 }
