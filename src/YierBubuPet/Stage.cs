@@ -44,6 +44,7 @@ public sealed class Stage : IDisposable
     double _alertMs;
 
     public Settings Settings { get; }
+    public UpdateService Updates { get; }
     public AnimationLibrary Library => _lib;
     public int PetCount => _pets.Count;
     public bool PetsShown => _shown;
@@ -74,6 +75,12 @@ public sealed class Stage : IDisposable
         {
             if (e.Button is Forms.MouseButtons.Left or Forms.MouseButtons.Right) ShowPanel();
         };
+
+        Updates = new UpdateService(Settings);
+        AboutWindow.Updates = Updates;
+        Updates.Found += update => Balloon(6000, Strings.Format("Update.Balloon", update.Version.ToString(3)));
+        Updates.Changed += () => { if (_panel.IsVisible) _panel.Refresh(); };
+        _tray.BalloonTipClicked += (_, _) => ShowPanel();
 
         _alerts = new AlertCenter(Settings);
         // Some sources (unlocking the PC) report from another thread.
@@ -142,6 +149,7 @@ public sealed class Stage : IDisposable
 
         foreach (var pet in _pets) pet.Tick(dt);
         _alerts.Tick();
+        Updates.Tick();
         _panel.CloseIfClickedOutside();
 
         if (_alertPet != null)

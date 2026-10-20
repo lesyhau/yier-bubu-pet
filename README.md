@@ -68,6 +68,18 @@ This publishes the single-file exe to `dist\win-<arch>\` and compiles
 The version comes from `<Version>` in `src/YierBubuPet/YierBubuPet.csproj`. You can also open the
 `.iss` file in the Inno Setup IDE and compile it there after publishing.
 
+### Publishing a release
+
+Create a GitHub release whose tag is the version (`v1.2.0`, matching `<Version>` in the `.csproj`) and attach:
+
+- `YierBubuPet-<version>-setup-x64.exe` and `YierBubuPet-<version>-setup-arm64.exe` (from `dist\`)
+- `YierBubuPet-win-x64.exe` and `YierBubuPet-win-arm64.exe` (the portable exes)
+
+`installer\build.ps1 -Arch x64, arm64` puts all four in `dist\`.
+
+The app's self-update looks for exactly these names: installed copies download the setup for their
+architecture, portable copies the matching exe.
+
 Where things go when installed:
 
 | What | Where |
@@ -91,6 +103,10 @@ Uninstalling asks whether to delete the animations folder too; by default it's k
     language (automatic / English / Tiếng Việt), start with Windows
   - **Animations**: open the folder, reload, download the starter stickers
   - **ⓘ** About and **Support the developer ❤**, **⏻** Exit
+
+**Updates:** the app checks GitHub for a new version once a day (you can turn this off, or check now, under
+**Settings** in the panel, or in **About**). When there is one, **Update now** downloads it and installs it: the
+installed version runs the new installer silently and reopens; the portable exe replaces itself and restarts.
 
 Settings, alarms included, are saved in `%AppData%\YierBubuPet\settings.json`.
 
@@ -187,6 +203,7 @@ Inside `src/YierBubuPet/`:
 | `Alerts/` | What triggers alerts (alarms, timers, notifications, battery, ...), the alarm dialog and the speech bubble |
 | `Audio/AlertSound.cs` | Plays the alert sound |
 | `UI/` | The control panel and its building blocks (cards, toggles, buttons) |
+| `Updates/` | Checking GitHub Releases for a new version, downloading it and updating in place |
 | `About/AboutWindow.cs` | About window with links and the donation options (PayPal link, VietQR code) |
 | `Localization/Strings.cs` | Menu and window text in English and Vietnamese |
 | `StarterPack/` | The starter sticker list and its downloader |

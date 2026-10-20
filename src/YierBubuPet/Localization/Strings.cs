@@ -106,6 +106,22 @@ public static class Strings
         ["Alarm.BadTime"] = ("Enter a time like 07:30.", "Hãy nhập giờ dạng 07:30."),
         ["Alarm.BadMinutes"] = ("Enter a number of minutes (up to 1440).", "Hãy nhập số phút (tối đa 1440)."),
 
+        // updates
+        ["Update.Title"] = ("Updates", "Cập nhật"),
+        ["Update.Available"] = ("Version {0} is available", "Đã có phiên bản {0}"),
+        ["Update.Now"] = ("Update now", "Cập nhật ngay"),
+        ["Update.OpenPage"] = ("Open the download page", "Mở trang tải về"),
+        ["Update.WhatsNew"] = ("What's new", "Có gì mới"),
+        ["Update.Check"] = ("Check for updates", "Kiểm tra cập nhật"),
+        ["Update.Checking"] = ("Checking for updates…", "Đang kiểm tra cập nhật…"),
+        ["Update.UpToDate"] = ("You have the latest version.", "Bạn đang dùng phiên bản mới nhất."),
+        ["Update.Failed"] = ("Couldn't check for updates. Check your internet connection.", "Không kiểm tra được cập nhật. Hãy kiểm tra kết nối mạng."),
+        ["Update.Downloading"] = ("Downloading the update… {0}%", "Đang tải bản cập nhật… {0}%"),
+        ["Update.Installing"] = ("Installing… the pets will be right back!", "Đang cài đặt… hai bé sẽ quay lại ngay!"),
+        ["Update.DownloadFailed"] = ("The update couldn't be downloaded. Try again later.", "Không tải được bản cập nhật. Hãy thử lại sau."),
+        ["Update.Balloon"] = ("Version {0} is available. Click here to update.", "Đã có phiên bản {0}. Nhấp vào đây để cập nhật."),
+        ["Update.Auto"] = ("Check for updates automatically", "Tự động kiểm tra cập nhật"),
+
         // starter pack
         ["Starter.Offer"] = (
             "There are no animations in\n{0}\n\nDownload the starter pack of {1} Yier & Bubu stickers from Tenor (about 5 MB)?",

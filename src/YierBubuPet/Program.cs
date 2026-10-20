@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Windows;
 
@@ -7,6 +8,9 @@ namespace YierBubuPet;
 
 public static class Program
 {
+    const string MutexName = "YierBubuPet.SingleInstance";
+    static Mutex? _singleInstance;
+
     [STAThread]
     public static void Main(string[] args)
     {
@@ -23,8 +27,17 @@ public static class Program
             return;
         }
 
-        using var mutex = new Mutex(true, "YierBubuPet.SingleInstance", out bool firstInstance);
+        // Right after an update the previous version may still be closing; give it a moment.
+        bool firstInstance = false;
+        for (int i = 0; i < 20 && !firstInstance; i++)
+        {
+            _singleInstance?.Dispose();
+            _singleInstance = new Mutex(true, MutexName, out firstInstance);
+            if (!firstInstance && !args.Contains("--updated")) return;
+            if (!firstInstance) Thread.Sleep(250);
+        }
         if (!firstInstance) return;
+        Updater.CleanUpAfterUpdate();
 
         var root = FindAnimationsFolder() ?? CreateAnimationsFolder();
 
@@ -34,6 +47,16 @@ public static class Program
         app.Startup += (_, _) => stage = new Stage(root);
         app.Exit += (_, _) => stage?.Dispose();
         app.Run();
+        ReleaseSingleInstance();
+    }
+
+    /// <summary>Lets another copy start (and lets the installer see that this one has closed). Call on the UI thread.</summary>
+    public static void ReleaseSingleInstance()
+    {
+        if (_singleInstance == null) return;
+        try { _singleInstance.ReleaseMutex(); } catch (ApplicationException) { /* not owned */ }
+        _singleInstance.Dispose();
+        _singleInstance = null;
     }
 
     /// <summary>Debug aid: YierBubuPet.exe --dump in.gif outDir writes the processed frames as PNGs.</summary>

@@ -95,10 +95,37 @@ Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: 
 
 [Run]
 Filename: "{app}\{#AppExe}"; Description: "{cm:LaunchProgram,{#StringChange(AppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
+; After an update started from the app (setup.exe /SILENT /UPDATE), start the new version.
+Filename: "{app}\{#AppExe}"; Parameters: "--updated"; Flags: nowait runasoriginaluser; Check: IsUpdate
 
 [Code]
 const
   RunKey = 'Software\Microsoft\Windows\CurrentVersion\Run';
+
+{ True when the app started this setup to update itself (it passes /UPDATE). }
+function IsUpdate: Boolean;
+var
+  I: Integer;
+begin
+  Result := False;
+  for I := 1 to ParamCount do
+    if CompareText(ParamStr(I), '/UPDATE') = 0 then
+      Result := True;
+end;
+
+function InitializeSetup: Boolean;
+var
+  I: Integer;
+begin
+  Result := True;
+  { The app exits right after starting the update; give it a few seconds to close. }
+  if IsUpdate then
+    for I := 1 to 40 do
+    begin
+      if not CheckForMutexes('YierBubuPet.SingleInstance') then Break;
+      Sleep(250);
+    end;
+end;
 
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 var

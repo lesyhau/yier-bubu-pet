@@ -100,6 +100,10 @@ public sealed class Settings
     /// <summary>Alert sound volume, 0 to 1.</summary>
     public double AlertVolume { get; set; } = 0.8;
 
+    /// <summary>Look for a new version on GitHub once a day.</summary>
+    public bool AutoCheckUpdates { get; set; } = true;
+    public DateTime LastUpdateCheck { get; set; }
+
     static string FilePath => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "YierBubuPet", "settings.json");
 

@@ -33,6 +33,9 @@ public sealed class AboutWindow : Window
     public const string RepoUrl = "https://github.com/lesyhau/yier-bubu-pet";
     static AboutWindow? _open;
 
+    /// <summary>Set by the stage at start-up; the window shows and runs updates through it.</summary>
+    public static UpdateService? Updates { get; set; }
+
     /// <summary>Shows the window (or brings it to the front), optionally scrolled to the donation section.</summary>
     public static void ShowAbout(bool donate = false)
     {
@@ -77,6 +80,19 @@ public sealed class AboutWindow : Window
         about.Children.Add(source);
         root.Children.Add(Ui.CardOf(about));
 
+        // ---- updates ----
+        if (Updates is UpdateService updates)
+        {
+            var holder = new Border();
+            root.Children.Add(holder);
+            void Fill() => holder.Child = UpdateCard(updates);
+            Fill();
+            Action changed = () => Fill();
+            updates.Changed += changed;
+            updates.ProgressChanged += changed;
+            Closed += (_, _) => { updates.Changed -= changed; updates.ProgressChanged -= changed; };
+        }
+
         // ---- support ----
         var donate = new StackPanel();
         var intro = new StackPanel();
@@ -92,10 +108,31 @@ public sealed class AboutWindow : Window
         Content = new ScrollViewer
         {
             Content = root,
-            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Hidden, // scrolls with the wheel, no scrollbar
             HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
         };
         KeyDown += (_, e) => { if (e.Key == System.Windows.Input.Key.Escape) Close(); };
+    }
+
+    static Border UpdateCard(UpdateService updates)
+    {
+        var card = new StackPanel();
+        var info = new StackPanel();
+        info.Children.Add(Ui.Label(Strings.Get("Update.Title"), 15, FontWeights.SemiBold));
+        info.Children.Add(Ui.Label(updates.State == UpdateState.Idle
+            ? Strings.Format("About.Version", Updater.Current.ToString(3))
+            : updates.StatusText, 13, color: Ui.Subtle, margin: new Thickness(0, 2, 0, 0)));
+        bool busy = updates.State is UpdateState.Checking or UpdateState.Downloading or UpdateState.Installing;
+        card.Children.Add(Ui.Row(info, busy ? null : Ui.Link(Strings.Get("Update.Check"), () => _ = updates.CheckAsync(manual: true)), top: 0));
+        if (updates.Available != null && updates.State is UpdateState.Available or UpdateState.Failed)
+        {
+            card.Children.Add(Ui.PrimaryButton(Strings.Get(updates.Available.DownloadUrl != null ? "Update.Now" : "Update.OpenPage"), updates.Install));
+            var notes = Ui.Link(Strings.Get("Update.WhatsNew") + " ›", updates.OpenPage, Ui.Subtle);
+            notes.Margin = new Thickness(0, 8, 0, 0);
+            notes.HorizontalAlignment = HorizontalAlignment.Center;
+            card.Children.Add(notes);
+        }
+        return Ui.CardOf(card);
     }
 
     static Border PayPalCard()

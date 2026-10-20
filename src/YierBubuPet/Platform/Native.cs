@@ -35,6 +35,61 @@ internal static class Native
     /// <summary>True while the left or right mouse button is held down (anywhere on screen).</summary>
     public static bool MouseButtonDown() => (GetAsyncKeyState(0x01) & 0x8000) != 0 || (GetAsyncKeyState(0x02) & 0x8000) != 0;
 
+    [DllImport("user32.dll", SetLastError = true)]
+    static extern bool OpenClipboard(IntPtr owner);
+
+    [DllImport("user32.dll")]
+    static extern bool CloseClipboard();
+
+    [DllImport("user32.dll")]
+    static extern bool EmptyClipboard();
+
+    [DllImport("user32.dll", SetLastError = true)]
+    static extern IntPtr SetClipboardData(uint format, IntPtr data);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    static extern IntPtr GlobalAlloc(uint flags, UIntPtr bytes);
+
+    [DllImport("kernel32.dll")]
+    static extern IntPtr GlobalLock(IntPtr mem);
+
+    [DllImport("kernel32.dll")]
+    static extern bool GlobalUnlock(IntPtr mem);
+
+    [DllImport("kernel32.dll")]
+    static extern IntPtr GlobalFree(IntPtr mem);
+
+    /// <summary>
+    /// Puts text on the clipboard with plain Win32 calls. (WPF's Clipboard.SetText goes through OLE and
+    /// can block the UI thread, which also runs the pets, while other apps are reading the clipboard.)
+    /// Gives up after about 150 ms if another app keeps the clipboard open.
+    /// </summary>
+    public static bool CopyText(string text, Window owner)
+    {
+        const uint CF_UNICODETEXT = 13, GMEM_MOVEABLE = 0x0002;
+        var hwnd = new WindowInteropHelper(owner).Handle;
+        bool opened = false;
+        for (int i = 0; i < 10 && !(opened = OpenClipboard(hwnd)); i++) System.Threading.Thread.Sleep(15);
+        if (!opened) return false;
+        try
+        {
+            EmptyClipboard();
+            var mem = GlobalAlloc(GMEM_MOVEABLE, (UIntPtr)((text.Length + 1) * 2));
+            if (mem == IntPtr.Zero) return false;
+            var ptr = GlobalLock(mem);
+            Marshal.Copy(text.ToCharArray(), 0, ptr, text.Length);
+            Marshal.WriteInt16(ptr, text.Length * 2, 0);
+            GlobalUnlock(mem);
+            if (SetClipboardData(CF_UNICODETEXT, mem) != IntPtr.Zero) return true; // the clipboard owns it now
+            GlobalFree(mem);
+            return false;
+        }
+        finally
+        {
+            CloseClipboard();
+        }
+    }
+
     public static void MakeToolWindow(Window w)
     {
         var hwnd = new WindowInteropHelper(w).Handle;

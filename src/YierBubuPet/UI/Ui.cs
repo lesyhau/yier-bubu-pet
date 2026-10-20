@@ -122,8 +122,8 @@ internal static class Ui
         };
         void Copy()
         {
-            try { Clipboard.SetText(text); }
-            catch { return; } // clipboard busy
+            var window = Window.GetWindow(icon!);
+            if (window == null || !Native.CopyText(text, window)) return; // clipboard busy
             icon!.Text = "\uE73E"; // check mark
             icon.Foreground = Success;
             timer.Stop();
@@ -190,22 +190,32 @@ internal static class Ui
         return panel;
     }
 
-    /// <summary>A round icon button for the header (settings, exit, ...).</summary>
+    /// <summary>
+    /// An icon-only button (about, exit, copy, ...). No background: the icon is slightly faded,
+    /// full strength on hover, and fades more while pressed.
+    /// </summary>
     public static Border IconButton(string glyph, string tooltip, Action onClick)
     {
+        const double Rest = 0.7, Hover = 1.0, Pressed = 0.4;
+        var icon = new TextBlock { Text = glyph, FontFamily = Icons, FontSize = 15, Foreground = Text, Opacity = Rest, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
         var b = new Border
         {
-            Width = 30,
-            Height = 30,
-            CornerRadius = new CornerRadius(15),
-            Background = Brushes.Transparent,
+            Width = 28,
+            Height = 28,
+            Background = Brushes.Transparent, // still catches clicks around the glyph
             Cursor = Cursors.Hand,
             ToolTip = tooltip,
-            Child = new TextBlock { Text = glyph, FontFamily = Icons, FontSize = 15, Foreground = Text, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center },
+            Child = icon,
         };
-        b.MouseEnter += (_, _) => b.Background = Line;
-        b.MouseLeave += (_, _) => b.Background = Brushes.Transparent;
-        b.MouseLeftButtonUp += (_, e) => { e.Handled = true; onClick(); };
+        b.MouseEnter += (_, _) => icon.Opacity = Hover;
+        b.MouseLeave += (_, _) => icon.Opacity = Rest;
+        b.MouseLeftButtonDown += (_, e) => { e.Handled = true; icon.Opacity = Pressed; };
+        b.MouseLeftButtonUp += (_, e) =>
+        {
+            e.Handled = true;
+            icon.Opacity = b.IsMouseOver ? Hover : Rest;
+            onClick();
+        };
         return b;
     }
 

@@ -22,6 +22,7 @@ public sealed class ControlPanel : Window
     Rect _area;          // work area of the screen the panel is on
     bool _growUp;        // opened above the cursor: keep the bottom edge still when sections open or close
     double _anchorBottom;
+    TextBlock? _updateText; // the update status line, updated in place while downloading
 
     public ControlPanel(Stage stage)
     {
@@ -36,10 +37,11 @@ public sealed class ControlPanel : Window
         SizeToContent = SizeToContent.Height;
         Title = "Yier & Bubu";
 
-        // Content always fits the width (no horizontal scrolling); it scrolls vertically on short screens.
+        // Content always fits the width (no horizontal scrolling). On short screens it scrolls with the
+        // mouse wheel, without showing a scrollbar.
         _scroll = new ScrollViewer
         {
-            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Hidden,
             HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
             Padding = new Thickness(10),
         };
@@ -56,6 +58,7 @@ public sealed class ControlPanel : Window
         Deactivated += (_, _) => { Hide(); _hiddenAt = DateTime.Now; };
         SizeChanged += (_, e) => { if (e.HeightChanged && IsVisible) KeepOnScreen(); };
         KeyDown += (_, e) => { if (e.Key == System.Windows.Input.Key.Escape) Hide(); };
+        stage.Updates.ProgressChanged += () => { if (_updateText != null) _updateText.Text = stage.Updates.StatusText; };
     }
 
     /// <summary>Opens the panel with its corner at the cursor, kept inside the screen.</summary>
@@ -128,6 +131,30 @@ public sealed class ControlPanel : Window
         var header = Ui.Row(left, icons, top: 0);
         header.Margin = new Thickness(6, 2, 2, 2);
         root.Children.Add(header);
+
+        // ---- update available ----
+        _updateText = null;
+        var updates = _stage.Updates;
+        bool showUpdate = updates.Available != null
+            && updates.State is UpdateState.Available or UpdateState.Downloading or UpdateState.Installing or UpdateState.Failed;
+        if (showUpdate)
+        {
+            var card = new StackPanel();
+            _updateText = Ui.Label(updates.StatusText, 14, FontWeights.SemiBold);
+            card.Children.Add(Ui.Row(_updateText, Ui.Link(T("Update.WhatsNew") + " ›", updates.OpenPage, Ui.Subtle), top: 0));
+            if (updates.State is UpdateState.Available or UpdateState.Failed)
+                card.Children.Add(Ui.PrimaryButton(T(updates.Available!.DownloadUrl != null ? "Update.Now" : "Update.OpenPage"), updates.Install));
+            root.Children.Add(new Border
+            {
+                Child = card,
+                Background = Ui.Card,
+                BorderBrush = Ui.Accent,
+                BorderThickness = new Thickness(1.5),
+                CornerRadius = new CornerRadius(10),
+                Padding = new Thickness(16, 12, 16, 14),
+                Margin = new Thickness(0, 8, 0, 0),
+            });
+        }
 
         // ---- hero: quick actions ----
         var hero = new StackPanel();
@@ -205,6 +232,13 @@ public sealed class ControlPanel : Window
             s.Language, lang => { _stage.SetLanguage(lang); Dispatcher.BeginInvoke(Refresh); });
         pets.Children.Add(Ui.Divider());
         pets.Children.Add(Ui.Row(Ui.Label(T("StartWithWindows")), Ui.Toggle(Stage.StartsWithWindows(), Stage.SetStartWithWindows), top: 6));
+        pets.Children.Add(Ui.Row(Ui.Label(T("Update.Auto")), Ui.Toggle(s.AutoCheckUpdates, v => { s.AutoCheckUpdates = v; s.Save(); }), top: 10));
+        var check = new StackPanel();
+        check.Children.Add(Ui.Label(Strings.Format("About.Version", Updater.Current.ToString(3)), 13));
+        if (!showUpdate && updates.State is not UpdateState.Idle)
+            check.Children.Add(Ui.Label(updates.StatusText, 12, color: Ui.Subtle));
+        pets.Children.Add(Ui.Row(check, updates.State == UpdateState.Checking ? null
+            : Ui.Link(T("Update.Check"), () => _ = updates.CheckAsync(manual: true)), top: 10));
         root.Children.Add(Section("settings", T("Panel.Pets"), pets));
 
         // ---- animations ----

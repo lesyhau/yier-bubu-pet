@@ -4,7 +4,9 @@
 
 .DESCRIPTION
     For each architecture: publishes a self-contained single-file exe to dist\win-<arch>,
-    then compiles installer\YierBubuPet.iss into dist\YierBubuPet-<version>-setup-<arch>.exe.
+    copies it to dist\YierBubuPet-win-<arch>.exe (the portable download), then compiles
+    installer\YierBubuPet.iss into dist\YierBubuPet-<version>-setup-<arch>.exe.
+    Attach all of dist\*.exe to the GitHub release.
 
     Needs the .NET 8 SDK and Inno Setup 6.3 or newer (https://jrsoftware.org/isdl.php).
 
@@ -43,6 +45,9 @@ foreach ($a in $Arch) {
         -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true `
         -o $out
     if ($LASTEXITCODE -ne 0) { throw "dotnet publish failed for win-$a" }
+
+    # The portable exe, named the way the app's self-update looks for it on the Releases page.
+    Copy-Item (Join-Path $out "YierBubuPet.exe") (Join-Path $repo "dist\YierBubuPet-win-$a.exe") -Force
 
     Write-Host "== Building installer for $a ==" -ForegroundColor Cyan
     & $Iscc "/DArch=$a" (Join-Path $PSScriptRoot "YierBubuPet.iss")
