@@ -32,6 +32,18 @@ internal static class Screens
         }
     }
 
+    /// <summary>The part of a work area the pets may walk in.</summary>
+    public static Rect Restrict(Rect workArea, WalkArea mode)
+    {
+        double half = workArea.Width / 2;
+        return mode switch
+        {
+            WalkArea.LeftHalf => new Rect(workArea.Left, workArea.Top, half, workArea.Height),
+            WalkArea.RightHalf => new Rect(workArea.Left + half, workArea.Top, half, workArea.Height),
+            _ => workArea,
+        };
+    }
+
     public static Point CursorDip()
     {
         var p = Native.CursorPixels();

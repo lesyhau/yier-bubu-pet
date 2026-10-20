@@ -1,3 +1,5 @@
+<p align="center"><img src="assets/logo/logo.png" width="160" alt="Yier & Bubu logo"></p>
+
 # Yier & Bubu desktop pet
 
 一二 (Yier, the white panda) and 布布 (Bubu, the brown bear) live on top of your Windows taskbar.
@@ -84,9 +86,12 @@ Uninstalling asks whether to delete the animations folder too; by default it's k
   - **Together time 💕**: they walk to each other and play a "together" animation (double-clicking the tray icon does the same)
   - **Bedtime 💤 / Wake up**: they also fall asleep by themselves after 5 minutes without keyboard or mouse input
   - **Size**: Small / Medium / Large / Huge
+  - **Walking area**: Whole screen / Left half / Right half (you can still drag them anywhere; they walk back)
   - **Sound**: Off / When I click or drag them / For everything they do, and Quiet / Normal / Loud
   - **Hide pets**, **Open animations folder**, **Reload animations**, **Download starter stickers**
   - **Start with Windows**
+  - **Language**: Automatic (follows Windows) / English / Tiếng Việt
+  - **About** and **Support the developer ❤**
   - **Exit**
 
 Settings are saved in `%AppData%\YierBubuPet\settings.json`.
@@ -159,8 +164,10 @@ usually tagged "bubu dudu". Try "bubu dudu sleep", "bubu dudu hug", "bubu dudu w
 YierBubuPet.sln
 src/YierBubuPet/        the app
 assets/sounds/          default sound effects (embedded in the exe)
+assets/logo/            app logo (SVG source; tools/make_icon.py renders the .ico and PNGs)
+assets/donate/          donation QR code (tools/make_qr.py)
 installer/              Inno Setup script and build script
-tools/                  sticker downloader, sound generator
+tools/                  sticker downloader, sound / icon / QR generators
 animations/             your animations and sounds (not in git)
 ```
 
@@ -176,11 +183,23 @@ Inside `src/YierBubuPet/`:
 | `Animation/AnimationLibrary.cs` | Finds animations and their sounds by folder, decodes in the background, caches, reloads when files change |
 | `Animation/ClipDecoder.cs` | Decodes GIF/WebP/PNG with [SkiaSharp](https://github.com/mono/SkiaSharp), removes solid backgrounds, trims and scales |
 | `Audio/SoundChannel.cs` | Plays the sound that goes with a window's current animation |
+| `About/AboutWindow.cs` | About window with links and the donation options (PayPal link, VietQR code) |
+| `Localization/Strings.cs` | Menu and window text in English and Vietnamese |
 | `StarterPack/` | The starter sticker list, its downloader, and installing the default sounds |
 | `Platform/` | Win32 calls, screens and DPI |
 | `Resources/` | App icon and manifest |
 
+## Support the developer
+
+Yier & Bubu is free. If the pets make you smile, you can support development from **About → Support the developer**
+in the tray menu:
+
+- **PayPal**
+- **In Vietnam:** scan the QR code with your banking app (VietQR)
+
+<!-- DONATE-QR -->
+
 ## License
 
-The code and the sound effects in `assets/sounds` are [MIT](LICENSE) licensed. That doesn't cover the
+The code, the logo and the sound effects in `assets/` are [MIT](LICENSE) licensed. That doesn't cover the
 characters or any downloaded artwork.

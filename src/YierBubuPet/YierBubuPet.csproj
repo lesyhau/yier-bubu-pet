@@ -24,6 +24,9 @@
 
   <ItemGroup>
     <EmbeddedResource Include="StarterPack\StarterPack.json" LogicalName="StarterPack.json" />
+    <EmbeddedResource Include="Resources\logo.png" LogicalName="logo.png" />
+    <!-- Bank transfer QR code for the About window; the donation section hides it when the file is missing. -->
+    <EmbeddedResource Include="..\..\assets\donate\donate-qr.png" LogicalName="donate-qr.png" Condition="Exists('..\..\assets\donate\donate-qr.png')" />
     <!-- Default sound effects, copied into the animations folder with the starter pack. -->
     <EmbeddedResource Include="..\..\assets\sounds\**\*.wav" LogicalName="sounds/%(RecursiveDir)%(Filename)%(Extension)" />
   </ItemGroup>

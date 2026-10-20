@@ -29,7 +29,7 @@ public sealed class Stage : IDisposable
     readonly DispatcherTimer _timer;
     readonly Stopwatch _clock = Stopwatch.StartNew();
     readonly Forms.NotifyIcon _tray;
-    readonly Forms.ContextMenuStrip _menu;
+    Forms.ContextMenuStrip _menu;
 
     Mode _mode = Mode.Free;
     string _togetherKey = "together/play";
@@ -41,6 +41,7 @@ public sealed class Stage : IDisposable
     public Stage(string animationsRoot)
     {
         _settings = Settings.Load();
+        Strings.Apply(_settings.Language);
         _lib = new AnimationLibrary(animationsRoot, _settings.PetHeight, Screens.DpiScale);
         _duoSound = new SoundChannel(_settings);
         _lib.Changed += () =>
@@ -74,11 +75,12 @@ public sealed class Stage : IDisposable
     /// <summary>Creates a pet for each character that has idle animations and isn't on screen yet.</summary>
     void AddMissingPets()
     {
-        var area = Screens.PrimaryWorkArea;
+        var area = Screens.Restrict(Screens.PrimaryWorkArea, _settings.WalkArea);
         foreach (var (name, offset) in new[] { ("yier", 260.0), ("bubu", 130.0) })
         {
             if (_pets.Any(p => p.Name == name) || !_lib.Has($"{name}/idle")) continue;
-            var pet = new Pet(name, _lib, _settings, _rng, area.Right - offset, area.Bottom);
+            double x = Math.Max(area.Left + 60, area.Right - offset);
+            var pet = new Pet(name, _lib, _settings, _rng, x, area.Bottom);
             pet.Touched += OnPetTouched;
             pet.RightClicked += _ => ShowMenuAtCursor();
             pet.SetShown(_shown);
@@ -90,20 +92,20 @@ public sealed class Stage : IDisposable
     void OfferStarterPack()
     {
         var answer = MessageBox.Show(
-            $"There are no animations in\n{_lib.Root}\n\nDownload the starter pack of {StarterPack.Total} Yier & Bubu stickers from Tenor (about 5 MB)?",
+            Strings.Format("Starter.Offer", _lib.Root, StarterPack.Total),
             "Yier & Bubu", MessageBoxButton.YesNo, MessageBoxImage.Question);
         if (answer == MessageBoxResult.Yes) DownloadStarterPack();
     }
 
     async void DownloadStarterPack()
     {
-        _tray.ShowBalloonTip(3000, "Yier & Bubu", "Downloading stickers…", Forms.ToolTipIcon.None);
+        _tray.ShowBalloonTip(3000, "Yier & Bubu", Strings.Get("Starter.Downloading"), Forms.ToolTipIcon.None);
         var (downloaded, failed) = await StarterPack.DownloadMissingAsync(_lib.Root);
         StarterPack.InstallDefaultSounds(_lib.Root);
         _lib.Reload();
         string text = failed == 0
-            ? $"{downloaded} new sticker(s) downloaded."
-            : $"{downloaded} new sticker(s) downloaded, {failed} failed. Try again later from the tray menu.";
+            ? Strings.Format("Starter.Done", downloaded)
+            : Strings.Format("Starter.Failed", downloaded, failed);
         _tray.ShowBalloonTip(4000, "Yier & Bubu", text, Forms.ToolTipIcon.None);
     }
 
@@ -157,9 +159,10 @@ public sealed class Stage : IDisposable
 
         var left = _pets.OrderBy(p => p.X).First();
         var right = _pets.First(p => p != left);
-        var area = Screens.WorkAreaAt(left.X, left.Y - 1);
+        var area = Screens.Restrict(Screens.WorkAreaAt(left.X, left.Y - 1), _settings.WalkArea);
         _gap = _settings.PetHeight * 0.35;
-        _meetX = Math.Clamp((left.X + right.X) / 2, area.Left + _settings.PetHeight, area.Right - _settings.PetHeight);
+        double lo = area.Left + _settings.PetHeight, hi = Math.Max(lo, area.Right - _settings.PetHeight);
+        _meetX = Math.Clamp((left.X + right.X) / 2, lo, hi);
         left.WalkTo(_meetX - _gap);
         right.WalkTo(_meetX + _gap);
     }
@@ -277,60 +280,67 @@ public sealed class Stage : IDisposable
     Forms.ContextMenuStrip BuildMenu()
     {
         var menu = new Forms.ContextMenuStrip();
+        string T(string key) => Strings.Get(key);
 
-        var hug = new Forms.ToolStripMenuItem("Together time 💕", null, (_, _) => TogetherNow());
-        var bed = new Forms.ToolStripMenuItem("Bedtime 💤");
+        var hug = new Forms.ToolStripMenuItem(T("Together"), null, (_, _) => TogetherNow());
+        var bed = new Forms.ToolStripMenuItem(T("Bedtime"));
         bed.Click += (_, _) =>
         {
             _bedtime = !IsAsleep;
             if (_bedtime) GoToSleep(); else WakeUp();
         };
 
-        var size = new Forms.ToolStripMenuItem("Size");
-        foreach (var (label, h) in new[] { ("Small", 90.0), ("Medium", 120.0), ("Large", 160.0), ("Huge", 220.0) })
-        {
-            var item = new Forms.ToolStripMenuItem(label) { Tag = h };
-            item.Click += (_, _) =>
+        var size = Choices(T("Size"),
+            new (string, object)[] { (T("Size.Small"), 90.0), (T("Size.Medium"), 120.0), (T("Size.Large"), 160.0), (T("Size.Huge"), 220.0) },
+            v => (double)v == _settings.PetHeight,
+            v =>
             {
-                _settings.PetHeight = h;
-                _settings.Save();
-                _lib.SetHeight(h);
+                _settings.PetHeight = (double)v;
+                _lib.SetHeight(_settings.PetHeight);
                 if (_mode == Mode.Together) ShowTogether(sound: false);
-            };
-            size.DropDownItems.Add(item);
-        }
+            });
 
-        var sound = new Forms.ToolStripMenuItem("Sound");
-        var soundModes = new[]
-        {
-            (SoundMode.Off, "Off"),
-            (SoundMode.Interactions, "When I click or drag them"),
-            (SoundMode.Always, "For everything they do"),
-        };
-        foreach (var (mode, label) in soundModes)
-        {
-            var item = new Forms.ToolStripMenuItem(label) { Tag = mode };
-            item.Click += (_, _) =>
+        var sound = Choices(T("Sound"),
+            new (string, object)[] { (T("Sound.Off"), SoundMode.Off), (T("Sound.Interactions"), SoundMode.Interactions), (T("Sound.Always"), SoundMode.Always) },
+            v => (SoundMode)v == _settings.Sound,
+            v =>
             {
-                _settings.Sound = mode;
-                _settings.Save();
-                if (mode == SoundMode.Off) StopAllSounds();
-            };
-            sound.DropDownItems.Add(item);
-        }
+                _settings.Sound = (SoundMode)v;
+                if (_settings.Sound == SoundMode.Off) StopAllSounds();
+            });
         sound.DropDownItems.Add(new Forms.ToolStripSeparator());
-        foreach (var (label, v) in new[] { ("Quiet", 0.3), ("Normal", 0.6), ("Loud", 1.0) })
-        {
-            var item = new Forms.ToolStripMenuItem(label) { Tag = v };
-            item.Click += (_, _) =>
-            {
-                _settings.SoundVolume = v;
-                _settings.Save();
-            };
-            sound.DropDownItems.Add(item);
-        }
+        AddChoices(sound,
+            new (string, object)[] { (T("Volume.Quiet"), 0.3), (T("Volume.Normal"), 0.6), (T("Volume.Loud"), 1.0) },
+            v => (double)v == _settings.SoundVolume,
+            v => _settings.SoundVolume = (double)v);
 
-        var show = new Forms.ToolStripMenuItem("Hide pets");
+        var walk = Choices(T("WalkArea"),
+            new (string, object)[] { (T("WalkArea.Full"), WalkArea.Full), (T("WalkArea.Left"), WalkArea.LeftHalf), (T("WalkArea.Right"), WalkArea.RightHalf) },
+            v => (WalkArea)v == _settings.WalkArea,
+            v =>
+            {
+                _settings.WalkArea = (WalkArea)v;
+                if (_mode == Mode.Meeting) EndTogether(); // the meeting point may be outside the new area
+            });
+
+        var language = Choices(T("Language"),
+            new (string, object)[] { (T("Language.Auto"), "auto"), ("English", "en"), ("Tiếng Việt", "vi") },
+            v => (string)v == _settings.Language,
+            v =>
+            {
+                _settings.Language = (string)v;
+                Strings.Apply(_settings.Language);
+                // Rebuild after this menu has closed.
+                System.Windows.Threading.Dispatcher.CurrentDispatcher.BeginInvoke(() =>
+                {
+                    var old = _menu;
+                    _menu = BuildMenu();
+                    _tray.ContextMenuStrip = _menu;
+                    old.Dispose();
+                });
+            });
+
+        var show = new Forms.ToolStripMenuItem(T("HidePets"));
         show.Click += (_, _) =>
         {
             _shown = !_shown;
@@ -339,34 +349,63 @@ public sealed class Stage : IDisposable
             else if (_mode == Mode.Together) _duo.Show();
         };
 
-        var startup = new Forms.ToolStripMenuItem("Start with Windows");
+        var startup = new Forms.ToolStripMenuItem(T("StartWithWindows"));
         startup.Click += (_, _) => SetStartWithWindows(!StartsWithWindows());
 
         menu.Items.Add(hug);
         menu.Items.Add(bed);
         menu.Items.Add(new Forms.ToolStripSeparator());
         menu.Items.Add(size);
+        menu.Items.Add(walk);
         menu.Items.Add(sound);
         menu.Items.Add(show);
         menu.Items.Add(new Forms.ToolStripSeparator());
-        menu.Items.Add("Open animations folder", null, (_, _) => Process.Start("explorer.exe", _lib.Root));
-        menu.Items.Add("Reload animations", null, (_, _) => _lib.Reload());
-        menu.Items.Add("Download starter stickers", null, (_, _) => DownloadStarterPack());
+        menu.Items.Add(T("OpenFolder"), null, (_, _) => Process.Start("explorer.exe", _lib.Root));
+        menu.Items.Add(T("Reload"), null, (_, _) => _lib.Reload());
+        menu.Items.Add(T("DownloadStarter"), null, (_, _) => DownloadStarterPack());
         menu.Items.Add(startup);
+        menu.Items.Add(language);
         menu.Items.Add(new Forms.ToolStripSeparator());
-        menu.Items.Add("Exit", null, (_, _) => Application.Current.Shutdown());
+        menu.Items.Add(T("About"), null, (_, _) => AboutWindow.ShowAbout());
+        menu.Items.Add(T("Donate"), null, (_, _) => AboutWindow.ShowAbout(donate: true));
+        menu.Items.Add(new Forms.ToolStripSeparator());
+        menu.Items.Add(T("Exit"), null, (_, _) => Application.Current.Shutdown());
 
         menu.Opening += (_, _) =>
         {
-            bed.Text = IsAsleep ? "Wake up ☀️" : "Bedtime 💤";
-            show.Text = _shown ? "Hide pets" : "Show pets";
+            bed.Text = IsAsleep ? T("WakeUp") : T("Bedtime");
+            show.Text = _shown ? T("HidePets") : T("ShowPets");
             startup.Checked = StartsWithWindows();
-            foreach (Forms.ToolStripMenuItem item in size.DropDownItems)
-                item.Checked = (double)item.Tag! == _settings.PetHeight;
-            foreach (var item in sound.DropDownItems.OfType<Forms.ToolStripMenuItem>())
-                item.Checked = item.Tag is SoundMode m ? m == _settings.Sound : (double)item.Tag! == _settings.SoundVolume;
         };
         return menu;
+    }
+
+    /// <summary>A sub-menu of options where the current one is ticked. Picking one saves the settings.</summary>
+    Forms.ToolStripMenuItem Choices(string title, (string Label, object Value)[] options, Func<object, bool> isCurrent, Action<object> pick)
+    {
+        var parent = new Forms.ToolStripMenuItem(title);
+        AddChoices(parent, options, isCurrent, pick);
+        return parent;
+    }
+
+    void AddChoices(Forms.ToolStripMenuItem parent, (string Label, object Value)[] options, Func<object, bool> isCurrent, Action<object> pick)
+    {
+        var items = new List<(Forms.ToolStripMenuItem Item, object Value)>();
+        foreach (var (label, value) in options)
+        {
+            var item = new Forms.ToolStripMenuItem(label);
+            item.Click += (_, _) =>
+            {
+                pick(value);
+                _settings.Save();
+            };
+            parent.DropDownItems.Add(item);
+            items.Add((item, value));
+        }
+        parent.DropDownOpening += (_, _) =>
+        {
+            foreach (var (item, value) in items) item.Checked = isCurrent(value);
+        };
     }
 
     void StopAllSounds()

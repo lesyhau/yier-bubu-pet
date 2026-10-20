@@ -7,6 +7,9 @@ namespace YierBubuPet;
 
 public enum SoundMode { Off, Interactions, Always }
 
+/// <summary>Which part of the screen the pets walk around in.</summary>
+public enum WalkArea { Full, LeftHalf, RightHalf }
+
 public sealed class Settings
 {
     /// <summary>Height of a pet on screen, in device-independent pixels.</summary>
@@ -27,6 +30,13 @@ public sealed class Settings
 
     /// <summary>Sound volume, 0 to 1.</summary>
     public double SoundVolume { get; set; } = 0.6;
+
+    /// <summary>Part of the screen the pets stay in (they can still be dragged anywhere).</summary>
+    [JsonConverter(typeof(JsonStringEnumConverter))]
+    public WalkArea WalkArea { get; set; } = WalkArea.Full;
+
+    /// <summary>Menu language: "auto" (follow Windows), "en" or "vi".</summary>
+    public string Language { get; set; } = "auto";
 
     static string FilePath => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "YierBubuPet", "settings.json");

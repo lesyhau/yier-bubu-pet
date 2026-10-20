@@ -83,10 +83,18 @@ public sealed class Pet
         if (Window.Advance(dt)) _loops++;
 
         var area = Screens.WorkAreaAt(X, Y - 1);
+        var range = Screens.Restrict(area, _settings.WalkArea);
         switch (State)
         {
             case PetState.Idle:
-                if (_stateMs > _idleLimitMs) ChooseNext(area);
+                double margin = Window.Width > 0 ? Window.Width / 2 : 40;
+                if (X < range.Left + margin - 1 || X > range.Right - margin + 1)
+                {
+                    // Outside the walking area (dropped there, or the setting changed): walk back in.
+                    _targetX = Math.Clamp(X, range.Left + margin, Math.Max(range.Left + margin, range.Right - margin));
+                    Enter(PetState.Walk);
+                }
+                else if (_stateMs > _idleLimitMs) ChooseNext(range);
                 break;
 
             case PetState.Walk:
