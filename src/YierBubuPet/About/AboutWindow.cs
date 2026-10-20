@@ -4,25 +4,27 @@ using System.IO;
 using System.Reflection;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Documents;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 
 namespace YierBubuPet;
 
-/// <summary>Where donations go. Leave a value null to hide that option.</summary>
+/// <summary>Where donations go. Leave a value null to hide that part.</summary>
 internal static class Donation
 {
     /// <summary>
-    /// Opened by the PayPal button. PayPal's "Send money" page; donors paste <see cref="PayPalEmail"/> there.
+    /// Opened by the PayPal button. PayPal's "Send money" page; donors send to <see cref="PayPalEmail"/> there.
     /// Replace with a PayPal.Me link (https://paypal.me/yourname) if you get one.
     /// </summary>
     public static readonly string? PayPalUrl = "https://www.paypal.com/myaccount/transfer/homepage/pay";
 
-    /// <summary>The PayPal account email, shown with a Copy button (works when PayPal.Me isn't available).</summary>
     public static readonly string? PayPalEmail = "le.sy.hau@outlook.com";
 
-    // The VietQR bank code is the embedded resource "donate-qr.png" (assets/donate/donate-qr.png, made by tools/make_qr.py).
+    // Bank transfer (Vietnam). The QR code is the embedded resource "donate-qr.png"
+    // (assets/donate/donate-qr.png, made by tools/make_qr.py); these are shown below it.
+    public static readonly string? BankAccountName = "LE SY HAU";
+    public static readonly string? BankAccountNumber = "0181003535874";
+    public static readonly string? BankName = "Vietcombank";
 }
 
 /// <summary>About the app, with links and the donation options.</summary>
@@ -49,120 +51,138 @@ public sealed class AboutWindow : Window
     AboutWindow()
     {
         Title = Strings.Get("About");
-        Width = 440;
+        Width = 420;
         SizeToContent = SizeToContent.Height;
+        MaxHeight = SystemParameters.WorkArea.Height - 20;
         ResizeMode = ResizeMode.NoResize;
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
-        Background = Brushes.White;
+        Background = Ui.Background;
         var logo = LoadImage("logo.png");
         if (logo != null) Icon = logo;
 
-        var panel = new StackPanel { Margin = new Thickness(24, 20, 24, 20) };
+        var root = new StackPanel { Margin = new Thickness(14, 6, 14, 14) };
 
+        // ---- about ----
+        var about = new StackPanel();
         if (logo != null)
-            panel.Children.Add(new Image { Source = logo, Width = 112, Height = 112, Margin = new Thickness(0, 0, 0, 8) });
-        panel.Children.Add(Text("Yier & Bubu", 22, FontWeights.Bold, center: true));
-        panel.Children.Add(Text(Strings.Format("About.Version", Version()), 12, color: Brushes.Gray, center: true));
-        panel.Children.Add(Text(Strings.Get("About.Description"), 13, margin: new Thickness(0, 14, 0, 0)));
-        panel.Children.Add(Text(Strings.Get("About.FanProject"), 12, color: Brushes.Gray, margin: new Thickness(0, 10, 0, 0)));
-        panel.Children.Add(Text(Strings.Get("About.License"), 12, color: Brushes.Gray, margin: new Thickness(0, 2, 0, 0)));
-        panel.Children.Add(Link(Strings.Get("About.Source"), RepoUrl));
+            about.Children.Add(new Image { Source = logo, Width = 96, Height = 96, Margin = new Thickness(0, 4, 0, 6) });
+        about.Children.Add(Center(Ui.Label("Yier & Bubu", 20, FontWeights.Bold)));
+        about.Children.Add(Center(Ui.Label(Strings.Format("About.Version", Version()), 12, color: Ui.Subtle)));
+        about.Children.Add(Ui.Label(Strings.Get("About.Description"), 13, margin: new Thickness(0, 12, 0, 0)));
+        about.Children.Add(Ui.Label(Strings.Get("About.FanProject"), 12, color: Ui.Subtle, margin: new Thickness(0, 10, 0, 0)));
+        about.Children.Add(Ui.Label(Strings.Get("About.License"), 12, color: Ui.Subtle, margin: new Thickness(0, 2, 0, 0)));
+        var source = Ui.Link(Strings.Get("About.Source") + " ›", () => Open(RepoUrl));
+        source.Margin = new Thickness(0, 10, 0, 0);
+        source.HorizontalAlignment = HorizontalAlignment.Left;
+        about.Children.Add(source);
+        root.Children.Add(Ui.CardOf(about));
 
-        _donate = DonationSection();
-        panel.Children.Add(_donate);
+        // ---- support ----
+        var donate = new StackPanel();
+        var intro = new StackPanel();
+        intro.Children.Add(Ui.Label(Strings.Get("About.DonateTitle"), 16, FontWeights.SemiBold));
+        intro.Children.Add(Ui.Label(Strings.Get("About.DonateText"), 13, color: Ui.Subtle, margin: new Thickness(0, 4, 0, 0)));
+        donate.Children.Add(new Border { Child = intro, Margin = new Thickness(4, 16, 4, 0) });
+        if (Donation.PayPalEmail != null || Donation.PayPalUrl != null) donate.Children.Add(PayPalCard());
+        var qr = QrCard();
+        if (qr != null) donate.Children.Add(qr);
+        _donate = donate;
+        root.Children.Add(donate);
 
-        var close = new Button
+        var close = Ui.SecondaryButton(Strings.Get("About.Close"), Close);
+        close.Width = 110;
+        close.HorizontalAlignment = HorizontalAlignment.Right;
+        close.Margin = new Thickness(0, 14, 0, 0);
+        root.Children.Add(close);
+
+        Content = new ScrollViewer
         {
-            Content = Strings.Get("About.Close"),
-            MinWidth = 90,
-            Padding = new Thickness(12, 4, 12, 4),
-            HorizontalAlignment = HorizontalAlignment.Right,
-            Margin = new Thickness(0, 18, 0, 0),
-            IsCancel = true,
-            IsDefault = true,
+            Content = root,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
         };
-        close.Click += (_, _) => Close();
-        panel.Children.Add(close);
-
-        Content = new ScrollViewer { Content = panel, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, MaxHeight = SystemParameters.WorkArea.Height - 40 };
+        KeyDown += (_, e) => { if (e.Key == System.Windows.Input.Key.Escape) Close(); };
     }
 
-    FrameworkElement DonationSection()
+    static Border PayPalCard()
     {
-        var box = new StackPanel();
-        var border = new Border
-        {
-            Child = box,
-            Background = new SolidColorBrush(Color.FromRgb(0xFF, 0xF0, 0xF4)),
-            CornerRadius = new CornerRadius(10),
-            Padding = new Thickness(16, 12, 16, 14),
-            Margin = new Thickness(0, 18, 0, 0),
-        };
-        box.Children.Add(Text(Strings.Get("About.DonateTitle"), 15, FontWeights.SemiBold));
-        box.Children.Add(Text(Strings.Get("About.DonateText"), 13, margin: new Thickness(0, 4, 0, 0)));
-
-        if (Donation.PayPalUrl is string paypalUrl)
-        {
-            var paypal = new Button
-            {
-                Content = Strings.Get("About.PayPal"),
-                Padding = new Thickness(14, 6, 14, 6),
-                Margin = new Thickness(0, 12, 0, 0),
-                HorizontalAlignment = HorizontalAlignment.Left,
-                Background = new SolidColorBrush(Color.FromRgb(0xFF, 0xC4, 0x39)),
-                FontWeight = FontWeights.SemiBold,
-            };
-            paypal.Click += (_, _) => Open(paypalUrl);
-            box.Children.Add(paypal);
-        }
+        var card = new StackPanel();
+        card.Children.Add(Ui.Label("PayPal", 15, FontWeights.SemiBold));
         if (Donation.PayPalEmail is string email)
         {
-            var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 10, 0, 0) };
-            row.Children.Add(new TextBox { Text = "PayPal: " + email, IsReadOnly = true, BorderThickness = new Thickness(0), Background = Brushes.Transparent, VerticalAlignment = VerticalAlignment.Center });
-            var copy = new Button { Content = Strings.Get("About.PayPalCopy"), Padding = new Thickness(8, 2, 8, 2), Margin = new Thickness(8, 0, 0, 0) };
-            copy.Click += (_, _) =>
-            {
-                try { Clipboard.SetText(email); copy.Content = Strings.Get("About.Copied"); }
-                catch { /* clipboard busy */ }
-            };
-            row.Children.Add(copy);
-            box.Children.Add(row);
+            card.Children.Add(Ui.Label(Strings.Get("About.PayPalSendTo"), 13, color: Ui.Subtle, margin: new Thickness(0, 4, 0, 0)));
+            var address = Ui.Label(email, 14, FontWeights.Bold);
+            address.TextTrimming = TextTrimming.CharacterEllipsis;
+            address.TextWrapping = TextWrapping.NoWrap;
+            card.Children.Add(Ui.Row(address, Ui.CopyButton(email, Strings.Get("About.CopyEmail"))));
         }
-
-        var qr = LoadImage("donate-qr.png");
-        if (qr != null)
-        {
-            box.Children.Add(new Border
-            {
-                Child = new Image { Source = qr, Width = 220, Height = 220 * qr.PixelHeight / Math.Max(1, qr.PixelWidth) },
-                Background = Brushes.White,
-                Padding = new Thickness(8),
-                CornerRadius = new CornerRadius(8),
-                HorizontalAlignment = HorizontalAlignment.Center,
-                Margin = new Thickness(0, 14, 0, 0),
-            });
-            RenderOptions.SetBitmapScalingMode((Image)((Border)box.Children[^1]).Child, BitmapScalingMode.NearestNeighbor);
-            box.Children.Add(Text(Strings.Get("About.QrCaption"), 12, color: Brushes.DimGray, center: true, margin: new Thickness(0, 6, 0, 0)));
-        }
-        return border;
+        if (Donation.PayPalUrl is string url)
+            card.Children.Add(Ui.PrimaryButton(Strings.Get("About.PayPal"), () => Open(url)));
+        return Ui.CardOf(card);
     }
 
-    static TextBlock Text(string text, double size, FontWeight? weight = null, Brush? color = null, bool center = false, Thickness? margin = null) => new()
+    static Border? QrCard()
     {
-        Text = text,
-        FontSize = size,
-        FontWeight = weight ?? FontWeights.Normal,
-        Foreground = color ?? Brushes.Black,
-        TextWrapping = TextWrapping.Wrap,
-        TextAlignment = center ? TextAlignment.Center : TextAlignment.Left,
-        Margin = margin ?? new Thickness(0),
-    };
+        var qr = LoadImage("donate-qr.png");
+        if (qr == null) return null;
 
-    static TextBlock Link(string text, string url)
+        var card = new StackPanel();
+        card.Children.Add(Center(Ui.Label(Strings.Get("About.QrCaption"), 13, color: Ui.Subtle)));
+        var image = new Image { Source = qr, Width = 200, Height = 200 * qr.PixelHeight / Math.Max(1, qr.PixelWidth) };
+        RenderOptions.SetBitmapScalingMode(image, BitmapScalingMode.NearestNeighbor); // keep the modules crisp
+        card.Children.Add(new Border
+        {
+            Child = image,
+            Background = Brushes.White,
+            BorderBrush = Ui.Line,
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(12),
+            Padding = new Thickness(10),
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Margin = new Thickness(0, 10, 0, 0),
+        });
+
+        // Account details, like a banking app shows them.
+        var details = new StackPanel();
+        void Detail(string label, string? value, bool copy = false)
+        {
+            if (value == null) return;
+            var text = Ui.Label(value, 14, FontWeights.Bold);
+            UIElement right = text;
+            if (copy)
+            {
+                var row = new StackPanel { Orientation = Orientation.Horizontal };
+                row.Children.Add(text);
+                var button = Ui.CopyButton(value, Strings.Get("About.CopyNumber"));
+                button.Margin = new Thickness(4, 0, -6, 0);
+                row.Children.Add(button);
+                right = row;
+            }
+            if (details.Children.Count > 0) details.Children.Add(new Border { Height = 1, Background = Ui.Line, Margin = new Thickness(0, 8, 0, 0) });
+            details.Children.Add(Ui.Row(Ui.Label(label, 13, color: Ui.Subtle), right, top: 8));
+        }
+        Detail(Strings.Get("About.AccountName"), Donation.BankAccountName);
+        Detail(Strings.Get("About.AccountNumber"), Donation.BankAccountNumber, copy: true);
+        Detail(Strings.Get("About.Bank"), Donation.BankName);
+        if (details.Children.Count > 0)
+        {
+            card.Children.Add(new Border
+            {
+                Child = details,
+                Background = Ui.Background,
+                CornerRadius = new CornerRadius(10),
+                Padding = new Thickness(14, 2, 14, 10),
+                Margin = new Thickness(0, 12, 0, 0),
+            });
+        }
+        return Ui.CardOf(card);
+    }
+
+    static FrameworkElement Center(TextBlock t)
     {
-        var link = new Hyperlink(new Run(text)) { NavigateUri = new Uri(url) };
-        link.RequestNavigate += (_, e) => { Open(e.Uri.AbsoluteUri); e.Handled = true; };
-        return new TextBlock(link) { FontSize = 13, Margin = new Thickness(0, 10, 0, 0) };
+        t.HorizontalAlignment = HorizontalAlignment.Center;
+        t.TextAlignment = TextAlignment.Center;
+        return t;
     }
 
     static void Open(string url)

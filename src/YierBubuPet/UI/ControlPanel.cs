@@ -15,10 +15,13 @@ namespace YierBubuPet;
 /// </summary>
 public sealed class ControlPanel : Window
 {
-    const double PanelWidth = 340;
+    const double PanelWidth = 360; // outer width of the visible panel, in DIPs
     readonly Stage _stage;
     readonly ScrollViewer _scroll;
     DateTime _hiddenAt;
+    Rect _area;          // work area of the screen the panel is on
+    bool _growUp;        // opened above the cursor: keep the bottom edge still when sections open or close
+    double _anchorBottom;
 
     public ControlPanel(Stage stage)
     {
@@ -29,11 +32,17 @@ public sealed class ControlPanel : Window
         Topmost = true;
         ShowInTaskbar = false;
         ResizeMode = ResizeMode.NoResize;
-        Width = PanelWidth + 20;
+        Width = PanelWidth + 20; // + the margin that holds the drop shadow
         SizeToContent = SizeToContent.Height;
         Title = "Yier & Bubu";
 
-        _scroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Padding = new Thickness(10, 10, 10, 10) };
+        // Content always fits the width (no horizontal scrolling); it scrolls vertically on short screens.
+        _scroll = new ScrollViewer
+        {
+            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+            Padding = new Thickness(10),
+        };
         Content = new Border
         {
             Child = _scroll,
@@ -45,6 +54,7 @@ public sealed class ControlPanel : Window
             Effect = new DropShadowEffect { BlurRadius = 16, ShadowDepth = 2, Opacity = 0.22 },
         };
         Deactivated += (_, _) => { Hide(); _hiddenAt = DateTime.Now; };
+        SizeChanged += (_, e) => { if (e.HeightChanged && IsVisible) KeepOnScreen(); };
         KeyDown += (_, e) => { if (e.Key == System.Windows.Input.Key.Escape) Hide(); };
     }
 
@@ -55,7 +65,7 @@ public sealed class ControlPanel : Window
         if ((DateTime.Now - _hiddenAt).TotalMilliseconds < 300) return;
         Refresh();
         var cursor = Screens.CursorDip();
-        var area = Screens.WorkAreaAt(cursor.X, cursor.Y);
+        var area = _area = Screens.WorkAreaAt(cursor.X, cursor.Y);
         MaxHeight = area.Height - 8;
         _scroll.MaxHeight = MaxHeight - 20;
 
@@ -66,10 +76,20 @@ public sealed class ControlPanel : Window
         // Open up and to the left of the cursor (the tray is usually bottom-right), flipping if there's no room.
         double left = cursor.X - w + 10, top = cursor.Y - h + 10;
         if (left < area.Left) left = cursor.X - 10;
-        if (top < area.Top) top = cursor.Y - 10;
+        _growUp = top >= area.Top;
+        if (!_growUp) top = cursor.Y - 10;
         Left = Math.Clamp(left, area.Left, Math.Max(area.Left, area.Right - w));
         Top = Math.Clamp(top, area.Top, Math.Max(area.Top, area.Bottom - h));
+        _anchorBottom = Top + h;
         Activate();
+    }
+
+    /// <summary>After a section opens or closes: keep the panel inside the screen (and its bottom edge still if it opened upwards).</summary>
+    void KeepOnScreen()
+    {
+        double h = ActualHeight;
+        double top = _growUp ? _anchorBottom - h : Top;
+        Top = Math.Clamp(top, _area.Top, Math.Max(_area.Top, _area.Bottom - h));
     }
 
     /// <summary>
@@ -92,7 +112,7 @@ public sealed class ControlPanel : Window
     {
         string T(string key) => Strings.Get(key);
         var s = _stage.Settings;
-        var root = new StackPanel { Width = PanelWidth };
+        var root = new StackPanel();
 
         // ---- header ----
         var logo = LoadLogo();
@@ -128,7 +148,6 @@ public sealed class ControlPanel : Window
 
         // ---- alarms & timers ----
         var alarms = new StackPanel();
-        alarms.Children.Add(Ui.Header(T("Panel.Alarms"), T("Panel.AddAlarm"), () => AddAlarm(timer: false)));
         var list = s.Alarms.OrderBy(a => a.NextRing()).ToList();
         if (list.Count == 0)
             alarms.Children.Add(Ui.Label(T("Panel.NoAlarms"), 13, color: Ui.Subtle, margin: new Thickness(0, 2, 0, 0)));
@@ -140,7 +159,7 @@ public sealed class ControlPanel : Window
             alarms.Children.Add(Ui.Row(info, Ui.Link(T("Panel.Remove"), () => { _stage.RemoveAlarm(alarm); Refresh(); })));
         }
         alarms.Children.Add(Ui.Divider());
-        var quick = new StackPanel { Orientation = Orientation.Horizontal };
+        var quick = new System.Windows.Controls.Primitives.UniformGrid { Rows = 1 };
         foreach (var minutes in new[] { 5, 10, 25, 60 })
         {
             var pill = Ui.SecondaryButton(Strings.Format("Panel.Minutes", minutes), () =>
@@ -148,20 +167,17 @@ public sealed class ControlPanel : Window
                 _stage.AddAlarm(new Alarm { IsTimer = true, Due = DateTime.Now.AddMinutes(minutes) });
                 Refresh();
             });
-            pill.MinWidth = 50;
             pill.Height = 28;
-            pill.Padding = new Thickness(10, 0, 10, 0);
-            pill.Margin = new Thickness(0, 0, 6, 0);
+            pill.Margin = new Thickness(0, 0, minutes == 60 ? 0 : 6, 0);
             quick.Children.Add(pill);
         }
         alarms.Children.Add(Ui.Row(Ui.Label(T("Panel.Timer")), Ui.Link(T("Panel.CustomTimer"), () => AddAlarm(timer: true))));
         quick.Margin = new Thickness(0, 8, 0, 0);
         alarms.Children.Add(quick);
-        root.Children.Add(Ui.CardOf(alarms));
+        root.Children.Add(Section("alarms", T("Panel.Alarms"), alarms, T("Panel.AddAlarm"), () => AddAlarm(timer: false)));
 
         // ---- alerts ----
         var alerts = new StackPanel();
-        alerts.Children.Add(Ui.Header(T("Panel.Alerts"), T("Panel.TestAlert"), () => { Hide(); _stage.TestAlert(); }));
         alerts.Children.Add(Ui.Label(T("Panel.AlertsHint"), 12, color: Ui.Subtle));
         void Switch(string label, bool value, Action<bool> set) =>
             alerts.Children.Add(Ui.Row(Ui.Label(label), Ui.Toggle(value, v => { set(v); s.Save(); }), top: 10));
@@ -172,17 +188,14 @@ public sealed class ControlPanel : Window
         Switch(T("Panel.Unlock"), s.AlertUnlock, v => s.AlertUnlock = v);
         alerts.Children.Add(Ui.Divider());
         Switch(T("Panel.AlertSound"), s.AlertSound, v => s.AlertSound = v);
-        root.Children.Add(Ui.CardOf(alerts));
+        root.Children.Add(Section("alerts", T("Panel.Alerts"), alerts, T("Panel.TestAlert"), () => { Hide(); _stage.TestAlert(); }));
 
         // ---- pets ----
         var pets = new StackPanel();
-        pets.Children.Add(Ui.Header(T("Panel.Pets")));
         void Choice<TValue>(string label, (string, TValue)[] options, TValue current, Action<TValue> set)
         {
             pets.Children.Add(Ui.Label(label, 13, margin: new Thickness(0, 8, 0, 4)));
-            var seg = Ui.Segmented(options, current, v => { set(v); s.Save(); });
-            seg.HorizontalAlignment = HorizontalAlignment.Left;
-            pets.Children.Add(seg);
+            pets.Children.Add(Ui.Segmented(options, current, v => { set(v); s.Save(); }));
         }
         Choice(T("Size"), new[] { (T("Size.Small"), 90.0), (T("Size.Medium"), 120.0), (T("Size.Large"), 160.0), (T("Size.Huge"), 220.0) },
             s.PetHeight, h => _stage.SetPetHeight(h));
@@ -192,15 +205,14 @@ public sealed class ControlPanel : Window
             s.Language, lang => { _stage.SetLanguage(lang); Dispatcher.BeginInvoke(Refresh); });
         pets.Children.Add(Ui.Divider());
         pets.Children.Add(Ui.Row(Ui.Label(T("StartWithWindows")), Ui.Toggle(Stage.StartsWithWindows(), Stage.SetStartWithWindows), top: 6));
-        root.Children.Add(Ui.CardOf(pets));
+        root.Children.Add(Section("settings", T("Panel.Pets"), pets));
 
         // ---- animations ----
         var files = new StackPanel();
-        files.Children.Add(Ui.Header(T("Panel.Animations"), T("Panel.OpenFolder"), () => { Hide(); _stage.OpenAnimationsFolder(); }));
         files.Children.Add(Ui.Label(Strings.Format("Panel.AnimationCount", _stage.Library.TotalCount), 12, color: Ui.Subtle));
         files.Children.Add(Ui.IconLink("", T("Reload"), () => { _stage.ReloadAnimations(); Refresh(); }));
         files.Children.Add(Ui.IconLink("", T("DownloadStarter"), () => { Hide(); _stage.DownloadStarterPack(); }));
-        root.Children.Add(Ui.CardOf(files));
+        root.Children.Add(Section("animations", T("Panel.Animations"), files, T("Panel.OpenFolder"), () => { Hide(); _stage.OpenAnimationsFolder(); }));
 
         // ---- support ----
         root.Children.Add(Ui.CardOf(Ui.Row(
@@ -208,6 +220,18 @@ public sealed class ControlPanel : Window
             Ui.Link(T("Panel.Support") + " ›", () => { Hide(); AboutWindow.ShowAbout(donate: true); }), top: 0)));
 
         _scroll.Content = root;
+    }
+
+    /// <summary>A collapsible card; remembers whether it's open in the settings.</summary>
+    Border Section(string key, string title, UIElement body, string? link = null, Action? onLink = null)
+    {
+        var s = _stage.Settings;
+        return Ui.Section(title, s.ExpandedSections.Contains(key), open =>
+        {
+            s.ExpandedSections.Remove(key);
+            if (open) s.ExpandedSections.Add(key);
+            s.Save();
+        }, body, link, onLink);
     }
 
     async void AddAlarm(bool timer)

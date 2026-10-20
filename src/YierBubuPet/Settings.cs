@@ -71,6 +71,9 @@ public sealed class Settings
     /// <summary>Menu language: "auto" (follow Windows), "en" or "vi".</summary>
     public string Language { get; set; } = "auto";
 
+    /// <summary>Control panel sections that are expanded ("alarms", "alerts", "settings", "animations").</summary>
+    public List<string> ExpandedSections { get; set; } = new() { "alarms" };
+
     // ---- alerts (animations\alert) ----
 
     public List<Alarm> Alarms { get; set; } = new();

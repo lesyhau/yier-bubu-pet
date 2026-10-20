@@ -133,11 +133,15 @@ public static class Strings
             "Yier & Bubu is free. If the pets make you smile, you can buy me a coffee ☕ Thank you!",
             "Yier & Bubu hoàn toàn miễn phí. Nếu hai bé làm bạn vui, bạn có thể mời mình một ly cà phê ☕ Cảm ơn bạn!"),
         ["About.PayPal"] = ("Donate with PayPal", "Ủng hộ qua PayPal"),
-        ["About.PayPalCopy"] = ("Copy PayPal email", "Sao chép email PayPal"),
-        ["About.Copied"] = ("Copied!", "Đã sao chép!"),
+        ["About.PayPalSendTo"] = ("Send any amount to this PayPal account:", "Gửi bất kỳ số tiền nào tới tài khoản PayPal này:"),
+        ["About.CopyEmail"] = ("Copy email", "Sao chép email"),
         ["About.QrCaption"] = (
-            "In Vietnam: scan with your banking app (VietQR)",
-            "Tại Việt Nam: quét mã bằng ứng dụng ngân hàng (VietQR)"),
+            "Or scan this QR code with a Vietnamese banking app",
+            "Hoặc quét mã QR bằng ứng dụng ngân hàng Việt Nam"),
+        ["About.AccountName"] = ("Account name", "Chủ tài khoản"),
+        ["About.AccountNumber"] = ("Account number", "Số tài khoản"),
+        ["About.Bank"] = ("Bank", "Ngân hàng"),
+        ["About.CopyNumber"] = ("Copy account number", "Sao chép số tài khoản"),
         ["About.Close"] = ("Close", "Đóng"),
     };
 

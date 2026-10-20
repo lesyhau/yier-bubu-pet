@@ -20,6 +20,7 @@ internal static class Ui
     public static readonly Brush Subtle = Freeze(new SolidColorBrush(Color.FromRgb(0x6E, 0x6B, 0x75)));
     public static readonly Brush Line = Freeze(new SolidColorBrush(Color.FromRgb(0xEC, 0xEA, 0xEF)));
     public static readonly Brush Accent = Freeze(new SolidColorBrush(Color.FromRgb(0xE0, 0x4F, 0x86)));
+    public static readonly Brush Success = Freeze(new SolidColorBrush(Color.FromRgb(0x2E, 0x9E, 0x5B)));
     public static readonly Brush AccentSoft = Freeze(new SolidColorBrush(Color.FromRgb(0xFF, 0xE4, 0xEE)));
     public static readonly Brush ButtonGradient = Freeze(new LinearGradientBrush(
         Color.FromRgb(0xFF, 0x6F, 0x9F), Color.FromRgb(0x9B, 0x6B, 0xFF), 0));
@@ -53,6 +54,84 @@ internal static class Ui
             Padding = new Thickness(16, 12, 16, 12),
             Margin = new Thickness(0, 8, 0, 0),
         };
+    }
+
+    /// <summary>
+    /// A card whose body folds away when its header is clicked. The header has the title, an optional
+    /// link ("Add alarm ›") and a chevron. <paramref name="toggled"/> is told the new state.
+    /// </summary>
+    public static Border Section(string title, bool expanded, Action<bool> toggled, UIElement body, string? link = null, Action? onLink = null)
+    {
+        var chevron = new TextBlock { FontFamily = Icons, FontSize = 11, Foreground = Subtle, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(10, 0, 0, 0) };
+        var header = new Grid { Background = Brushes.Transparent, Cursor = Cursors.Hand };
+        header.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        var titleText = Label(title, 15, FontWeights.SemiBold);
+        titleText.TextTrimming = TextTrimming.CharacterEllipsis;
+        titleText.TextWrapping = TextWrapping.NoWrap;
+        header.Children.Add(titleText);
+        if (link != null && onLink != null)
+        {
+            var l = Link(link + " ›", onLink, Subtle);
+            l.Margin = new Thickness(10, 0, 0, 0);
+            Grid.SetColumn(l, 1);
+            header.Children.Add(l);
+        }
+        Grid.SetColumn(chevron, 2);
+        header.Children.Add(chevron);
+
+        var bodyHolder = new Border { Child = body, Margin = new Thickness(0, 8, 0, 0) };
+        void Show(bool open)
+        {
+            bodyHolder.Visibility = open ? Visibility.Visible : Visibility.Collapsed;
+            chevron.Text = open ? "\uE70E" : "\uE70D"; // chevron up / down
+        }
+        Show(expanded);
+        header.MouseLeftButtonUp += (_, e) =>
+        {
+            e.Handled = true;
+            expanded = !expanded;
+            Show(expanded);
+            toggled(expanded);
+        };
+
+        var stack = new StackPanel();
+        stack.Children.Add(header);
+        stack.Children.Add(bodyHolder);
+        return new Border
+        {
+            Child = stack,
+            Background = Card,
+            CornerRadius = new CornerRadius(10),
+            Padding = new Thickness(16, 12, 16, 12),
+            Margin = new Thickness(0, 8, 0, 0),
+        };
+    }
+
+    /// <summary>A copy icon that puts <paramref name="text"/> on the clipboard and shows a tick for 5 seconds.</summary>
+    public static Border CopyButton(string text, string tooltip)
+    {
+        TextBlock? icon = null;
+        var timer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
+        timer.Tick += (_, _) =>
+        {
+            timer.Stop();
+            icon!.Text = "\uE8C8"; // copy
+            icon.Foreground = Text;
+        };
+        void Copy()
+        {
+            try { Clipboard.SetText(text); }
+            catch { return; } // clipboard busy
+            icon!.Text = "\uE73E"; // check mark
+            icon.Foreground = Success;
+            timer.Stop();
+            timer.Start();
+        }
+        var button = IconButton("\uE8C8", tooltip, Copy);
+        icon = (TextBlock)button.Child;
+        return button;
     }
 
     /// <summary>Section title on the left, an optional link on the right ("Open folder ›").</summary>
@@ -209,10 +288,10 @@ internal static class Ui
         return track;
     }
 
-    /// <summary>A row of pills where one is selected.</summary>
+    /// <summary>A row of pills where one is selected. The pills share the full width.</summary>
     public static Border Segmented<T>(IList<(string Label, T Value)> options, T current, Action<T> picked)
     {
-        var panel = new StackPanel { Orientation = Orientation.Horizontal };
+        var panel = new System.Windows.Controls.Primitives.UniformGrid { Rows = 1 };
         var pills = new List<(Border Pill, TextBlock Text, T Value)>();
         void Select(T value)
         {
@@ -226,8 +305,8 @@ internal static class Ui
         }
         foreach (var (label, value) in options)
         {
-            var text = new TextBlock { Text = label, FontSize = 12, HorizontalAlignment = HorizontalAlignment.Center };
-            var pill = new Border { Child = text, CornerRadius = new CornerRadius(6), Padding = new Thickness(9, 4, 9, 4), Cursor = Cursors.Hand };
+            var text = new TextBlock { Text = label, FontSize = 12, HorizontalAlignment = HorizontalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis, ToolTip = label };
+            var pill = new Border { Child = text, CornerRadius = new CornerRadius(6), Padding = new Thickness(4, 4, 4, 4), Cursor = Cursors.Hand };
             pill.MouseLeftButtonUp += (_, e) => { e.Handled = true; Select(value); picked(value); };
             panel.Children.Add(pill);
             pills.Add((pill, text, value));
