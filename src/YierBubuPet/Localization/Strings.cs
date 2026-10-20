@@ -62,7 +62,6 @@ public static class Strings
         ["Panel.Timer"] = ("Quick timer", "Hẹn giờ nhanh"),
         ["Panel.CustomTimer"] = ("Custom…", "Tùy chỉnh…"),
         ["Panel.Minutes"] = ("{0} min", "{0} phút"),
-        ["Panel.TimerAt"] = ("Timer · rings at {0}", "Hẹn giờ · reo lúc {0}"),
         ["Panel.Alerts"] = ("Alerts", "Thông báo"),
         ["Panel.TestAlert"] = ("Try it", "Thử"),
         ["Panel.AlertsHint"] = (

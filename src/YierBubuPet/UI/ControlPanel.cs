@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Windows;
@@ -6,6 +7,7 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Effects;
 using System.Windows.Media.Imaging;
+using System.Windows.Threading;
 
 namespace YierBubuPet;
 
@@ -23,6 +25,8 @@ public sealed class ControlPanel : Window
     bool _growUp;        // opened above the cursor: keep the bottom edge still when sections open or close
     double _anchorBottom;
     TextBlock? _updateText; // the update status line, updated in place while downloading
+    readonly List<(TextBlock Label, Alarm Timer)> _countdowns = new(); // timer rows, updated every second
+    readonly DispatcherTimer _countdownTimer = new() { Interval = TimeSpan.FromSeconds(1) };
 
     public ControlPanel(Stage stage)
     {
@@ -59,6 +63,26 @@ public sealed class ControlPanel : Window
         SizeChanged += (_, e) => { if (e.HeightChanged && IsVisible) KeepOnScreen(); };
         KeyDown += (_, e) => { if (e.Key == System.Windows.Input.Key.Escape) Hide(); };
         stage.Updates.ProgressChanged += () => { if (_updateText != null) _updateText.Text = stage.Updates.StatusText; };
+
+        // Tick the timer countdowns only while the panel is open.
+        _countdownTimer.Tick += (_, _) => UpdateCountdowns();
+        IsVisibleChanged += (_, _) =>
+        {
+            if (IsVisible) _countdownTimer.Start();
+            else _countdownTimer.Stop();
+        };
+    }
+
+    void UpdateCountdowns()
+    {
+        foreach (var (label, timer) in _countdowns) label.Text = Countdown(timer);
+    }
+
+    /// <summary>Time left on a timer: "4:59", or "1:04:59" for an hour or more. Rounds up, so it never shows 0:00 before ringing.</summary>
+    static string Countdown(Alarm timer)
+    {
+        var left = TimeSpan.FromSeconds(Math.Max(0, Math.Ceiling((timer.Due - DateTime.Now).TotalSeconds)));
+        return left.TotalHours >= 1 ? left.ToString(@"h\:mm\:ss") : left.ToString(@"m\:ss");
     }
 
     /// <summary>Opens the panel with its corner at the cursor, kept inside the screen.</summary>
@@ -178,10 +202,18 @@ public sealed class ControlPanel : Window
         var list = s.Alarms.OrderBy(a => a.NextRing()).ToList();
         if (list.Count == 0)
             alarms.Children.Add(Ui.Label(T("Panel.NoAlarms"), 13, color: Ui.Subtle, margin: new Thickness(0, 2, 0, 0)));
+        _countdowns.Clear();
         foreach (var alarm in list)
         {
             var info = new StackPanel();
-            info.Children.Add(Ui.Label(Describe(alarm), 13, FontWeights.SemiBold));
+            if (alarm.IsTimer)
+            {
+                var countdown = Ui.Label(Countdown(alarm), 15, FontWeights.SemiBold);
+                System.Windows.Documents.Typography.SetNumeralAlignment(countdown, FontNumeralAlignment.Tabular); // digits don't jiggle as they change
+                _countdowns.Add((countdown, alarm));
+                info.Children.Add(countdown);
+            }
+            else info.Children.Add(Ui.Label(Describe(alarm), 13, FontWeights.SemiBold));
             if (alarm.Message.Length > 0) info.Children.Add(Ui.Label(alarm.Message, 12, color: Ui.Subtle));
             alarms.Children.Add(Ui.Row(info, Ui.Link(T("Panel.Remove"), () => { _stage.RemoveAlarm(alarm); Refresh(); })));
         }
@@ -285,8 +317,6 @@ public sealed class ControlPanel : Window
 
     static string Describe(Alarm a)
     {
-        var at = a.NextRing();
-        if (a.IsTimer) return "⏳ " + Strings.Format("Panel.TimerAt", at.ToString("HH:mm"));
         string repeat = Strings.Get(a.Repeat switch
         {
             AlarmRepeat.Daily => "Alarm.Daily",

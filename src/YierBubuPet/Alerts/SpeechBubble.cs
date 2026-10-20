@@ -33,30 +33,51 @@ public sealed class SpeechBubble : Window
             MaxWidth = 240,
             TextAlignment = TextAlignment.Center,
         };
-        var bubble = new Border
+        var body = new Border
         {
             Child = _text,
-            Background = Brushes.White,
-            BorderBrush = Ui.Accent,
-            BorderThickness = new Thickness(2),
-            CornerRadius = new CornerRadius(14),
             Padding = new Thickness(14, 8, 14, 8),
+            Margin = new Thickness(0, 0, 0, TailHeight),
+            VerticalAlignment = VerticalAlignment.Top,
         };
-        // The little tail pointing down at the pet.
-        var tail = new Polygon
+        // The bubble and its tail are drawn as one outline, so there's no seam where they meet.
+        var outline = new Path
         {
-            Points = new PointCollection { new(0, 0), new(16, 0), new(8, 10) },
             Fill = Brushes.White,
             Stroke = Ui.Accent,
-            StrokeThickness = 2,
-            HorizontalAlignment = HorizontalAlignment.Center,
-            Margin = new Thickness(0, -2, 0, 0),
+            StrokeThickness = Stroke,
+            StrokeLineJoin = PenLineJoin.Round,
         };
-        var stack = new StackPanel { Margin = new Thickness(8) };
-        stack.Children.Add(bubble);
-        stack.Children.Add(tail);
-        stack.Effect = new DropShadowEffect { BlurRadius = 10, ShadowDepth = 1, Opacity = 0.25 };
-        Content = stack;
+        body.SizeChanged += (_, _) => outline.Data = Outline(body.ActualWidth, body.ActualHeight);
+
+        var grid = new Grid { Margin = new Thickness(8) };
+        grid.Children.Add(outline);
+        grid.Children.Add(body);
+        grid.Effect = new DropShadowEffect { BlurRadius = 10, ShadowDepth = 1, Opacity = 0.25 };
+        Content = grid;
+    }
+
+    const double Stroke = 2, Radius = 14, TailHeight = 9, TailWidth = 18;
+
+    /// <summary>A rounded box of w × h with a tail pointing down from the middle of its bottom edge.</summary>
+    static Geometry Outline(double w, double h)
+    {
+        double s = Stroke / 2; // keep the stroke inside the box
+        var box = new RectangleGeometry(new Rect(s, s, w - Stroke, h - Stroke), Radius - s, Radius - s);
+        double mid = w / 2, bottom = h - s;
+        var tail = new PathGeometry(new[]
+        {
+            new PathFigure(new Point(mid - TailWidth / 2, bottom - Radius / 2), new PathSegment[]
+            {
+                new LineSegment(new Point(mid + TailWidth / 2, bottom - Radius / 2), true),
+                new LineSegment(new Point(mid + TailWidth / 2, bottom), true),
+                new LineSegment(new Point(mid, bottom + TailHeight - s), true),
+                new LineSegment(new Point(mid - TailWidth / 2, bottom), true),
+            }, closed: true),
+        });
+        var shape = new CombinedGeometry(GeometryCombineMode.Union, box, tail);
+        shape.Freeze();
+        return shape;
     }
 
     public void Say(string text) => _text.Text = text;

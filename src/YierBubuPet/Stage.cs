@@ -64,6 +64,10 @@ public sealed class Stage : IDisposable
         _duo.MouseLeftButtonUp += (_, _) => OnDuoClicked();
         _duo.MouseRightButtonUp += (_, _) => ShowPanel();
 
+        // Before the panel: it reads Updates while building itself.
+        Updates = new UpdateService(Settings);
+        AboutWindow.Updates = Updates;
+
         _panel = new ControlPanel(this);
         _tray = new Forms.NotifyIcon
         {
@@ -76,8 +80,6 @@ public sealed class Stage : IDisposable
             if (e.Button is Forms.MouseButtons.Left or Forms.MouseButtons.Right) ShowPanel();
         };
 
-        Updates = new UpdateService(Settings);
-        AboutWindow.Updates = Updates;
         Updates.Found += update => Balloon(6000, Strings.Format("Update.Balloon", update.Version.ToString(3)));
         Updates.Changed += () => { if (_panel.IsVisible) _panel.Refresh(); };
         _tray.BalloonTipClicked += (_, _) => ShowPanel();
