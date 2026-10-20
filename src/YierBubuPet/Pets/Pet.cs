@@ -15,6 +15,7 @@ public enum PetState
     Fall,    // dropped, falling back to the taskbar
     Wait,    // arrived where the stage sent it, waiting for the other pet
     Hidden,  // temporarily replaced by a "together" animation
+    Alert,   // playing the alert animation (alarm, notification, ...) until dismissed
 }
 
 /// <summary>One character (Yier or Bubu): decides what to do next and moves its window.</summary>
@@ -56,6 +57,8 @@ public sealed class Pet
     /// <summary>Raised when the user drags or clicks the pet.</summary>
     public event Action<Pet>? Touched;
     public event Action<Pet>? RightClicked;
+    /// <summary>Raised when the user clicks or drags the pet while it's showing an alert.</summary>
+    public event Action<Pet>? AlertDismissed;
 
     public Pet(string name, AnimationLibrary lib, Settings settings, Random rng, double x, double y)
     {
@@ -81,10 +84,18 @@ public sealed class Pet
         if (Window.Advance(dt)) _loops++;
 
         var area = Screens.WorkAreaAt(X, Y - 1);
+        var range = Screens.Restrict(area, _settings.WalkArea);
         switch (State)
         {
             case PetState.Idle:
-                if (_stateMs > _idleLimitMs) ChooseNext(area);
+                double margin = Window.Width > 0 ? Window.Width / 2 : 40;
+                if (X < range.Left + margin - 1 || X > range.Right - margin + 1)
+                {
+                    // Outside the walking area (dropped there, or the setting changed): walk back in.
+                    _targetX = Math.Clamp(X, range.Left + margin, Math.Max(range.Left + margin, range.Right - margin));
+                    Enter(PetState.Walk);
+                }
+                else if (_stateMs > _idleLimitMs) ChooseNext(range);
                 break;
 
             case PetState.Walk:
@@ -160,7 +171,7 @@ public sealed class Pet
     public void Sleep()
     {
         _summoned = false;
-        if (State is not (PetState.Drag or PetState.Fall or PetState.Sleep)) Enter(PetState.Sleep);
+        if (State is not (PetState.Drag or PetState.Fall or PetState.Sleep or PetState.Alert)) Enter(PetState.Sleep);
     }
 
     public void Wake()
@@ -172,14 +183,34 @@ public sealed class Pet
     public void SetShown(bool shown)
     {
         _shown = shown;
-        if (!shown) Window.Hide();
-        else if (State != PetState.Hidden && Window.Animation != null) Window.Show();
+        if (!shown && State != PetState.Alert) Window.Hide();
+        else if (shown && State != PetState.Hidden && Window.Animation != null) Window.Show();
     }
 
     /// <summary>Pick a fresh animation for the current state (e.g. after the pet size changed).</summary>
     public void Refresh()
     {
-        if (State != PetState.Hidden) PlayFor(State);
+        if (State == PetState.Alert && _lastFile != null) PlayFile(_lastFile, faceViewer: true);
+        else if (State != PetState.Hidden) PlayFor(State);
+    }
+
+    /// <summary>Stop where it is and play <paramref name="file"/> until <see cref="EndAlert"/>. Shown even if the pets are hidden.</summary>
+    public void StartAlert(string file)
+    {
+        _summoned = false;
+        if (_dragging) { _dragging = _pressed = false; Window.ReleaseMouseCapture(); }
+        if (State == PetState.Fall) Y = Screens.WorkAreaAt(X, Y - 1).Bottom;
+        State = PetState.Alert;
+        _stateMs = 0;
+        _loops = 0;
+        PlayFile(file, faceViewer: true);
+    }
+
+    public void EndAlert()
+    {
+        if (State != PetState.Alert) return;
+        Enter(PetState.Idle);
+        if (!_shown) Window.Hide();
     }
 
     void ChooseNext(Rect area)
@@ -211,23 +242,29 @@ public sealed class Pet
         if (newClip) PlayFor(state);
     }
 
-    async void PlayFor(PetState state)
+    void PlayFor(PetState state)
+    {
+        if (!Anims.TryGetValue(state, out var folders)) return;
+        string? file = null;
+        foreach (var folder in folders)
+            if ((file = _lib.Pick($"{Name}/{folder}", _lastFile)) != null) break;
+        if (file != null) PlayFile(file, faceViewer: false);
+    }
+
+    async void PlayFile(string file, bool faceViewer)
     {
         int token = ++_playToken;
-        string? file = null;
-        foreach (var folder in Anims[state])
-            if ((file = _lib.Pick($"{Name}/{folder}", _lastFile)) != null) break;
-        if (file == null) return;
-
         var clip = await _lib.LoadAsync(file);
         if (token != _playToken || clip == null) return;
 
         _lastFile = file;
         _loops = 0;
         Window.Play(clip);
-        Window.Face(_facingRight);
+        // Alerts are shown the way they were drawn; everything else faces the walking direction.
+        Window.Face(faceViewer ? clip.FacesRight : _facingRight);
         Window.PlaceAt(X, Y);
-        if (_shown && State != PetState.Hidden && !Window.IsVisible) Window.Show();
+        bool visible = State == PetState.Alert || (_shown && State != PetState.Hidden);
+        if (visible && !Window.IsVisible) Window.Show();
     }
 
     void OnMouseDown(object sender, MouseButtonEventArgs e)
@@ -245,6 +282,7 @@ public sealed class Pet
         var p = Screens.CursorDip();
         if (!_dragging && (p - _pressPos).Length > 5)
         {
+            if (State == PetState.Alert) AlertDismissed?.Invoke(this);
             _dragging = true;
             _summoned = false;
             Enter(PetState.Drag);
@@ -267,6 +305,10 @@ public sealed class Pet
         {
             _dragging = false;
             Enter(PetState.Fall, newClip: false);
+        }
+        else if (State == PetState.Alert)
+        {
+            AlertDismissed?.Invoke(this);
         }
         else
         {

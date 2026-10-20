@@ -1,6 +1,7 @@
 bin/
 obj/
 app/
+dist/
 incoming/
 .vs/
 *.user

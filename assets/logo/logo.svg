@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <!-- Yier & Bubu app logo: a white panda and a brown bear, cheek to cheek. Original artwork, MIT licensed. -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFE3EC"/>
+      <stop offset="1" stop-color="#FFC6D6"/>
+    </linearGradient>
+    <linearGradient id="bear" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#C98F63"/>
+      <stop offset="1" stop-color="#B07A52"/>
+    </linearGradient>
+    <linearGradient id="panda" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#F3EEF0"/>
+    </linearGradient>
+  </defs>
+
+  <!-- background tile -->
+  <rect x="8" y="8" width="240" height="240" rx="56" fill="url(#bg)"/>
+
+  <!-- floating heart -->
+  <g transform="translate(128 58) scale(0.8) translate(-128 -75)">
+  <path d="M128 66 C128 66 116 52 106 52 C97 52 91 59 91 67 C91 82 128 98 128 98 C128 98 165 82 165 67 C165 59 159 52 150 52 C140 52 128 66 128 66 Z"
+        fill="#FF6F91" stroke="#4A2E2A" stroke-width="5" stroke-linejoin="round"/>
+  <ellipse cx="104" cy="64" rx="5" ry="3.5" fill="#FFFFFF" opacity="0.8" transform="rotate(-30 104 64)"/>
+  </g>
+
+  <g transform="translate(128 156) scale(0.84) translate(-127 -158)">
+  <!-- bear (right, behind) -->
+  <g stroke="#4A2E2A" stroke-width="6" stroke-linejoin="round">
+    <circle cx="200" cy="112" r="20" fill="url(#bear)"/>
+    <circle cx="140" cy="110" r="20" fill="url(#bear)"/>
+    <ellipse cx="166" cy="164" rx="64" ry="58" fill="url(#bear)"/>
+  </g>
+  <circle cx="200" cy="112" r="9" fill="#E8B48C"/>
+  <circle cx="141" cy="111" r="9" fill="#E8B48C"/>
+  <!-- bear face -->
+  <circle cx="161" cy="160" r="6" fill="#3A2420"/>
+  <circle cx="199" cy="160" r="6" fill="#3A2420"/>
+  <circle cx="163" cy="158" r="2" fill="#FFFFFF"/>
+  <circle cx="201" cy="158" r="2" fill="#FFFFFF"/>
+  <ellipse cx="180" cy="171" rx="5" ry="3.5" fill="#3A2420"/>
+  <path d="M172 177 Q176 182 180 177 Q184 182 188 177" fill="none" stroke="#3A2420" stroke-width="3.5" stroke-linecap="round"/>
+  <ellipse cx="149" cy="178" rx="10" ry="6.5" fill="#FF8FA8" opacity="0.75"/>
+  <ellipse cx="211" cy="178" rx="10" ry="6.5" fill="#FF8FA8" opacity="0.75"/>
+
+  <!-- panda (left, in front) -->
+  <g stroke="#4A2E2A" stroke-width="6" stroke-linejoin="round">
+    <circle cx="44" cy="122" r="19" fill="#3A2420"/>
+    <circle cx="114" cy="118" r="19" fill="#3A2420"/>
+    <ellipse cx="82" cy="170" rx="64" ry="58" fill="url(#panda)"/>
+  </g>
+  <!-- panda face: closed happy eyes -->
+  <path d="M58 166 Q65 158 72 166" fill="none" stroke="#3A2420" stroke-width="5" stroke-linecap="round"/>
+  <path d="M94 166 Q101 158 108 166" fill="none" stroke="#3A2420" stroke-width="5" stroke-linecap="round"/>
+  <path d="M77 178 Q83 186 89 178" fill="#FF6F91" stroke="#3A2420" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <ellipse cx="51" cy="182" rx="11" ry="7" fill="#FF9DB4" opacity="0.85"/>
+  <ellipse cx="115" cy="182" rx="11" ry="7" fill="#FF9DB4" opacity="0.85"/>
+  </g>
+</svg>

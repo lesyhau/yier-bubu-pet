@@ -24,14 +24,17 @@ public sealed class AnimationClip
 /// <summary>
 /// Finds animations under the animations folder by folder name
 /// ("yier/walk", "together/sleep", ...) and decodes them on demand.
+/// Also finds sound files (used for alerts, see <see cref="PickSound"/>).
 /// Drop a new file into a folder and it's picked up automatically.
 /// </summary>
 public sealed class AnimationLibrary : IDisposable
 {
     static readonly HashSet<string> Extensions = new(StringComparer.OrdinalIgnoreCase) { ".gif", ".webp", ".png", ".apng" };
+    public static readonly HashSet<string> SoundExtensions = new(StringComparer.OrdinalIgnoreCase) { ".wav", ".mp3", ".wma", ".m4a", ".aac" };
     const int CacheSize = 12;
 
     readonly Dictionary<string, List<string>> _byKey = new(StringComparer.OrdinalIgnoreCase);
+    readonly Dictionary<string, List<string>> _soundsByKey = new(StringComparer.OrdinalIgnoreCase);
     readonly Dictionary<string, Task<AnimationClip?>> _cache = new(StringComparer.OrdinalIgnoreCase);
     readonly LinkedList<string> _recent = new();
     readonly FileSystemWatcher _watcher;
@@ -81,6 +84,9 @@ public sealed class AnimationLibrary : IDisposable
 
     public bool Has(string key) => _byKey.TryGetValue(key, out var list) && list.Count > 0;
 
+    /// <summary>Number of animation files found.</summary>
+    public int TotalCount => _byKey.Values.Sum(list => list.Count);
+
     public int Count(string key) => _byKey.TryGetValue(key, out var list) ? list.Count : 0;
 
     /// <summary>Picks a random file for the key, avoiding <paramref name="avoid"/> when there is a choice.</summary>
@@ -90,6 +96,10 @@ public sealed class AnimationLibrary : IDisposable
         var choices = list.Count > 1 && avoid != null ? list.Where(f => f != avoid).ToList() : list;
         return choices[_rng.Next(choices.Count)];
     }
+
+    /// <summary>A random sound file directly in the folder for the key ("alert/alarm"), or null.</summary>
+    public string? PickSound(string key) =>
+        _soundsByKey.TryGetValue(key, out var list) && list.Count > 0 ? list[_rng.Next(list.Count)] : null;
 
     /// <summary>Decodes off the UI thread; returns null if the file can't be read.</summary>
     public Task<AnimationClip?> LoadAsync(string path)
@@ -152,15 +162,25 @@ public sealed class AnimationLibrary : IDisposable
     void Scan()
     {
         _byKey.Clear();
+        _soundsByKey.Clear();
         if (!Directory.Exists(Root)) return;
         foreach (var file in Directory.EnumerateFiles(Root, "*.*", SearchOption.AllDirectories))
         {
-            if (!Extensions.Contains(System.IO.Path.GetExtension(file))) continue;
-            var key = System.IO.Path.GetRelativePath(Root, System.IO.Path.GetDirectoryName(file)!).Replace('\\', '/');
-            if (!_byKey.TryGetValue(key, out var list)) _byKey[key] = list = new List<string>();
-            list.Add(file);
+            var ext = System.IO.Path.GetExtension(file);
+            if (Extensions.Contains(ext)) Add(_byKey, KeyOf(file), file);
+            else if (SoundExtensions.Contains(ext)) Add(_soundsByKey, KeyOf(file), file);
         }
     }
+
+    static void Add(Dictionary<string, List<string>> map, string key, string file)
+    {
+        if (!map.TryGetValue(key, out var list)) map[key] = list = new List<string>();
+        list.Add(file);
+    }
+
+    /// <summary>"yier/walk" for a file in animations\yier\walk.</summary>
+    string KeyOf(string file) =>
+        System.IO.Path.GetRelativePath(Root, System.IO.Path.GetDirectoryName(file)!).Replace('\\', '/');
 
     public void Dispose() => _watcher.Dispose();
 }
