@@ -89,12 +89,6 @@ public sealed class AboutWindow : Window
         _donate = donate;
         root.Children.Add(donate);
 
-        var close = Ui.SecondaryButton(Strings.Get("About.Close"), Close);
-        close.Width = 110;
-        close.HorizontalAlignment = HorizontalAlignment.Right;
-        close.Margin = new Thickness(0, 14, 0, 0);
-        root.Children.Add(close);
-
         Content = new ScrollViewer
         {
             Content = root,

@@ -142,7 +142,6 @@ public static class Strings
         ["About.AccountNumber"] = ("Account number", "Số tài khoản"),
         ["About.Bank"] = ("Bank", "Ngân hàng"),
         ["About.CopyNumber"] = ("Copy account number", "Sao chép số tài khoản"),
-        ["About.Close"] = ("Close", "Đóng"),
     };
 
     public static string Get(string key) =>
