@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Windows;
 using System.Windows.Threading;
@@ -98,6 +99,7 @@ public sealed class Stage : IDisposable
         _timer.Start();
 
         if (_pets.Count == 0) OfferStarterPack();
+        else if (_lib.Count("alert") == 0) _ = StarterPack.FillFolderAsync(_lib.Root, "alert"); // the folder watcher picks it up
     }
 
     /// <summary>Creates a pet for each character that has idle animations and isn't on screen yet.</summary>
@@ -219,8 +221,16 @@ public sealed class Stage : IDisposable
         _bubble.Show();
         PlaceBubble();
 
-        var sound = _lib.PickSound(alert.Folder) ?? _lib.PickSound("alert");
+        var sound = _lib.PickSound(alert.Folder) ?? _lib.PickSound("alert") ?? DefaultSound(alert.Kind);
         if (Settings.AlertSound && sound != null) _alertSound.Play(sound, loop: alert.Persistent, Settings.AlertVolume);
+    }
+
+    /// <summary>Alarms and timers ring with Windows' own alarm sound unless animations\alert has a sound file.</summary>
+    static string? DefaultSound(AlertKind kind)
+    {
+        if (kind is not (AlertKind.Alarm or AlertKind.Timer)) return null;
+        var file = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "Media", "Alarm01.wav");
+        return File.Exists(file) ? file : null;
     }
 
     void TickAlert(double dt)

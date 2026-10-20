@@ -53,6 +53,36 @@ internal static class StarterPack
         return (downloaded, failed);
     }
 
+    /// <summary>
+    /// Adds the starter stickers for one folder (e.g. "alert") that are missing. Copies a sticker from
+    /// another folder when it's already there (older starter packs put it elsewhere), otherwise downloads it.
+    /// Returns how many were added. Doesn't throw.
+    /// </summary>
+    public static async Task<int> FillFolderAsync(string root, string folder)
+    {
+        int added = 0;
+        using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
+        http.DefaultRequestHeaders.UserAgent.ParseAdd("YierBubuPet/1.0");
+        foreach (var entry in Entries.Value.Where(e => e.Folder == folder))
+        {
+            var target = TargetPath(root, entry);
+            if (target == null || File.Exists(target)) continue;
+            try
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+                var existing = Directory.EnumerateFiles(root, Path.GetFileName(target), SearchOption.AllDirectories).FirstOrDefault();
+                if (existing != null) File.Copy(existing, target);
+                else await File.WriteAllBytesAsync(target, await http.GetByteArrayAsync(entry.Url));
+                added++;
+            }
+            catch (Exception e) when (e is HttpRequestException or TaskCanceledException or IOException or UnauthorizedAccessException)
+            {
+                // Offline or no write access: alerts fall back to another animation.
+            }
+        }
+        return added;
+    }
+
     /// <summary>animations/&lt;folder&gt;/&lt;id&gt;_&lt;name&gt;.webp, or null if the entry looks wrong.</summary>
     static string? TargetPath(string root, Entry entry)
     {
