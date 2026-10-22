@@ -165,7 +165,7 @@ public sealed class ControlPanel : Window
         {
             var card = new StackPanel();
             _updateText = Ui.Label(updates.StatusText, 14, FontWeights.SemiBold);
-            card.Children.Add(Ui.Row(_updateText, Ui.Link(T("Update.WhatsNew") + " ›", updates.OpenPage, Ui.Subtle), top: 0));
+            card.Children.Add(Ui.Row(_updateText, Ui.Link(T("Update.WhatsNew"), updates.OpenPage), top: 0));
             if (updates.State is UpdateState.Available or UpdateState.Failed)
                 card.Children.Add(Ui.PrimaryButton(T(updates.Available!.DownloadUrl != null ? "Update.Now" : "Update.OpenPage"), updates.Install));
             root.Children.Add(new Border
@@ -283,7 +283,7 @@ public sealed class ControlPanel : Window
         // ---- support ----
         root.Children.Add(Ui.CardOf(Ui.Row(
             Ui.Label(T("Donate"), 13, FontWeights.SemiBold),
-            Ui.Link(T("Panel.Support") + " ›", () => { Hide(); AboutWindow.ShowAbout(donate: true); }), top: 0)));
+            Ui.Link(T("Panel.Support"), () => { Hide(); AboutWindow.ShowAbout(donate: true); }), top: 0)));
 
         _scroll.Content = root;
     }

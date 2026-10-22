@@ -74,7 +74,7 @@ public sealed class AboutWindow : Window
         about.Children.Add(Ui.Label(Strings.Get("About.Description"), 13, margin: new Thickness(0, 12, 0, 0)));
         about.Children.Add(Ui.Label(Strings.Get("About.FanProject"), 12, color: Ui.Subtle, margin: new Thickness(0, 10, 0, 0)));
         about.Children.Add(Ui.Label(Strings.Get("About.License"), 12, color: Ui.Subtle, margin: new Thickness(0, 2, 0, 0)));
-        var source = Ui.Link(Strings.Get("About.Source") + " ›", () => Open(RepoUrl));
+        var source = Ui.Link(Strings.Get("About.Source"), () => Open(RepoUrl));
         source.Margin = new Thickness(0, 10, 0, 0);
         source.HorizontalAlignment = HorizontalAlignment.Left;
         about.Children.Add(source);
@@ -127,7 +127,7 @@ public sealed class AboutWindow : Window
         if (updates.Available != null && updates.State is UpdateState.Available or UpdateState.Failed)
         {
             card.Children.Add(Ui.PrimaryButton(Strings.Get(updates.Available.DownloadUrl != null ? "Update.Now" : "Update.OpenPage"), updates.Install));
-            var notes = Ui.Link(Strings.Get("Update.WhatsNew") + " ›", updates.OpenPage, Ui.Subtle);
+            var notes = Ui.Link(Strings.Get("Update.WhatsNew"), updates.OpenPage);
             notes.Margin = new Thickness(0, 8, 0, 0);
             notes.HorizontalAlignment = HorizontalAlignment.Center;
             card.Children.Add(notes);

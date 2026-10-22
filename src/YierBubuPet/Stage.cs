@@ -221,16 +221,10 @@ public sealed class Stage : IDisposable
         _bubble.Show();
         PlaceBubble();
 
-        var sound = _lib.PickSound(alert.Folder) ?? _lib.PickSound("alert") ?? DefaultSound(alert.Kind);
-        if (Settings.AlertSound && sound != null) _alertSound.Play(sound, loop: alert.Persistent, Settings.AlertVolume);
-    }
-
-    /// <summary>Alarms and timers ring with Windows' own alarm sound unless animations\alert has a sound file.</summary>
-    static string? DefaultSound(AlertKind kind)
-    {
-        if (kind is not (AlertKind.Alarm or AlertKind.Timer)) return null;
-        var file = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "Media", "Alarm01.wav");
-        return File.Exists(file) ? file : null;
+        // A sound file in animations\alert wins; otherwise the app's own ringtone (alarms) or knock (the rest).
+        if (!Settings.AlertSound) return;
+        var sound = _lib.PickSound(alert.Folder) ?? _lib.PickSound("alert") ?? AlertSound.BuiltIn(ringing: alert.Persistent);
+        if (sound != null) _alertSound.Play(sound, loop: alert.Persistent, Settings.AlertVolume);
     }
 
     void TickAlert(double dt)

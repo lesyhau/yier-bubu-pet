@@ -1,4 +1,6 @@
 using System;
+using System.IO;
+using System.Reflection;
 using System.Windows.Media;
 
 namespace YierBubuPet;
@@ -39,6 +41,33 @@ public sealed class AlertSound
         _player.Open(new Uri(file, UriKind.Absolute));
         _player.Volume = Math.Clamp(volume, 0, 1);
         _player.Play();
+    }
+
+    /// <summary>
+    /// The app's own sound: a ringtone for alerts that ring until clicked, a knock for the rest.
+    /// MediaPlayer needs a file, so the embedded sound is copied to %LocalAppData%\YierBubuPet\sounds
+    /// the first time. Returns null if that fails.
+    /// </summary>
+    public static string? BuiltIn(bool ringing)
+    {
+        var name = ringing ? "ringtone.wav" : "knock.wav";
+        try
+        {
+            using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("sounds." + name);
+            if (stream == null) return null;
+            var file = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "YierBubuPet", "sounds", name);
+            if (!File.Exists(file) || new FileInfo(file).Length != stream.Length)
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(file)!);
+                using var output = File.Create(file);
+                stream.CopyTo(output);
+            }
+            return file;
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            return null;
+        }
     }
 
     public void Stop()

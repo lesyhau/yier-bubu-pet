@@ -58,7 +58,7 @@ internal static class Ui
 
     /// <summary>
     /// A card whose body folds away when its header is clicked. The header has the title, an optional
-    /// link ("Add alarm ›") and a chevron. <paramref name="toggled"/> is told the new state.
+    /// link ("Add alarm") and a chevron. <paramref name="toggled"/> is told the new state.
     /// </summary>
     public static Border Section(string title, bool expanded, Action<bool> toggled, UIElement body, string? link = null, Action? onLink = null)
     {
@@ -73,7 +73,7 @@ internal static class Ui
         header.Children.Add(titleText);
         if (link != null && onLink != null)
         {
-            var l = Link(link + " ›", onLink, Subtle);
+            var l = Link(link, onLink);
             l.Margin = new Thickness(10, 0, 0, 0);
             Grid.SetColumn(l, 1);
             header.Children.Add(l);
@@ -134,10 +134,10 @@ internal static class Ui
         return button;
     }
 
-    /// <summary>Section title on the left, an optional link on the right ("Open folder ›").</summary>
+    /// <summary>Section title on the left, an optional link on the right ("Open folder").</summary>
     public static UIElement Header(string title, string? link = null, Action? onLink = null)
     {
-        var grid = Row(Label(title, 15, FontWeights.SemiBold), link != null ? Link(link + " ›", onLink!, Subtle) : null);
+        var grid = Row(Label(title, 15, FontWeights.SemiBold), link != null ? Link(link, onLink!) : null);
         grid.Margin = new Thickness(0, 0, 0, 6);
         return grid;
     }

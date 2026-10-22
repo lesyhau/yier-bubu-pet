@@ -128,7 +128,8 @@ Alarms, timers and low battery always show, even when the pets are hidden. The o
 the pets are hidden or you're away from the PC.
 
 The animation and sound come from **`animations\alert\`**: put one animated sticker and one sound file
-(**WAV, MP3, WMA or M4A**) there. The starter pack puts a sticker there; add your own sound. To use a different
+(**WAV, MP3, WMA or M4A**) there. The starter pack puts a sticker there. Without a sound file, the app uses its
+own sounds: a ringtone for alerts that ring until clicked, a knock for the rest. To use a different
 animation or sound for one kind of alert, put it in a sub-folder named after it: `alert\alarm`, `alert\timer`,
 `alert\notification`, `alert\hourly`, `alert\battery`, `alert\charger` or `alert\unlock`.
 
@@ -184,6 +185,7 @@ YierBubuPet.sln
 src/YierBubuPet/        the app
 assets/logo/            app logo (SVG source; tools/make_icon.py renders the .ico and PNGs)
 assets/donate/          donation QR code (tools/make_qr.py)
+assets/sounds/          built-in alert sounds (embedded in the app)
 installer/              Inno Setup script and build script
 tools/                  sticker downloader, icon and QR generators
 animations/             your animations and the alert sound (not in git)
@@ -201,7 +203,7 @@ Inside `src/YierBubuPet/`:
 | `Animation/AnimationLibrary.cs` | Finds animations (and alert sounds) by folder, decodes in the background, caches, reloads when files change |
 | `Animation/ClipDecoder.cs` | Decodes GIF/WebP/PNG with [SkiaSharp](https://github.com/mono/SkiaSharp), removes solid backgrounds, trims and scales |
 | `Alerts/` | What triggers alerts (alarms, timers, notifications, battery, ...), the alarm dialog and the speech bubble |
-| `Audio/AlertSound.cs` | Plays the alert sound |
+| `Audio/AlertSound.cs` | Plays the alert sound, and the built-in ringtone and knock (`assets/sounds/`) |
 | `UI/` | The control panel and its building blocks (cards, toggles, buttons) |
 | `Updates/` | Checking GitHub Releases for a new version, downloading it and updating in place |
 | `About/AboutWindow.cs` | About window with links and the donation options (PayPal link, VietQR code) |
