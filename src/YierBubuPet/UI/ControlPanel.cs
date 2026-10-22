@@ -157,28 +157,30 @@ public sealed class ControlPanel : Window
         root.Children.Add(header);
 
         // ---- update available ----
+        // Found by the daily check: a card at the top. Found by "Check for updates": under that link in Settings.
         _updateText = null;
         var updates = _stage.Updates;
         bool showUpdate = updates.Available != null
             && updates.State is UpdateState.Available or UpdateState.Downloading or UpdateState.Installing or UpdateState.Failed;
-        if (showUpdate)
+        Border UpdateCard(bool inSettings)
         {
             var card = new StackPanel();
             _updateText = Ui.Label(updates.StatusText, 14, FontWeights.SemiBold);
             card.Children.Add(Ui.Row(_updateText, Ui.Link(T("Update.WhatsNew"), updates.OpenPage), top: 0));
             if (updates.State is UpdateState.Available or UpdateState.Failed)
                 card.Children.Add(Ui.PrimaryButton(T(updates.Available!.DownloadUrl != null ? "Update.Now" : "Update.OpenPage"), updates.Install));
-            root.Children.Add(new Border
+            return new Border
             {
                 Child = card,
                 Background = Ui.Card,
                 BorderBrush = Ui.Accent,
                 BorderThickness = new Thickness(1.5),
                 CornerRadius = new CornerRadius(10),
-                Padding = new Thickness(16, 12, 16, 14),
-                Margin = new Thickness(0, 8, 0, 0),
-            });
+                Padding = inSettings ? new Thickness(12, 10, 12, 12) : new Thickness(16, 12, 16, 14),
+                Margin = new Thickness(0, inSettings ? 10 : 8, 0, 0),
+            };
         }
+        if (showUpdate && !updates.FoundManually) root.Children.Add(UpdateCard(inSettings: false));
 
         // ---- hero: quick actions ----
         var hero = new StackPanel();
@@ -271,6 +273,7 @@ public sealed class ControlPanel : Window
             check.Children.Add(Ui.Label(updates.StatusText, 12, color: Ui.Subtle));
         pets.Children.Add(Ui.Row(check, updates.State == UpdateState.Checking ? null
             : Ui.Link(T("Update.Check"), () => _ = updates.CheckAsync(manual: true)), top: 10));
+        if (showUpdate && updates.FoundManually) pets.Children.Add(UpdateCard(inSettings: true));
         root.Children.Add(Section("settings", T("Panel.Pets"), pets));
 
         // ---- animations ----

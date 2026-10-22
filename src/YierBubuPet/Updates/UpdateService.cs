@@ -20,6 +20,8 @@ public sealed class UpdateService
     public double Progress { get; private set; }
     /// <summary>The failure was the download (not the check).</summary>
     public bool DownloadFailed { get; private set; }
+    /// <summary>The available update was found by clicking "Check for updates" (not the daily check).</summary>
+    public bool FoundManually { get; private set; }
 
     /// <summary>Raised on the UI thread when the state changes.</summary>
     public event Action? Changed;
@@ -50,6 +52,7 @@ public sealed class UpdateService
         {
             Available = await Updater.CheckAsync();
             DownloadFailed = false;
+            FoundManually = manual;
             Set(Available != null ? UpdateState.Available : UpdateState.UpToDate);
             if (Available != null && !manual) Found?.Invoke(Available);
         }
